@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planejador de Estudos UBA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            @apply bg-gradient-to-br from-blue-100 to-indigo-200 text-gray-800;
+        }
+        .container {
+            @apply max-w-7xl mx-auto p-4 sm:p-6;
+        }
+        .card {
+            @apply bg-white rounded-xl shadow-2xl p-6 mb-8 border border-indigo-200;
+        }
+        .course-item {
+            @apply bg-indigo-50 p-4 rounded-lg mb-3 shadow-sm border border-indigo-100;
+        }
+        .checklist-item {
+            @apply flex items-center mb-2 p-3 bg-green-50 rounded-lg shadow-sm border border-green-100;
+        }
+        .checklist-item.completed {
+            @apply bg-gray-100 line-through text-gray-500;
+        }
+        .checklist-item input[type="checkbox"] {
+            @apply mr-3 h-5 w-5 text-green-600 rounded focus:ring-green-500;
+        }
+        .tab-button {
+            @apply px-6 py-3 text-lg font-semibold rounded-t-lg transition-colors duration-200;
+        }
+        .tab-button.active {
+            @apply bg-indigo-700 text-white;
+        }
+        .tab-button:not(.active) {
+            @apply bg-indigo-200 text-indigo-800 hover:bg-indigo-300;
+        }
+        .tab-content {
+            @apply p-6 bg-white rounded-b-xl shadow-2xl border border-indigo-200;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="card text-center bg-indigo-700 text-white">
+            <h1 class="text-3xl sm:text-4xl font-bold mb-2">Seu Planejador de Estudos UBA 🎓</h1>
+            <p class="text-lg sm:text-xl opacity-90">Organize suas cursadas e missões para finalizar a faculdade!</p>
+        </header>
+
+        <nav class="flex justify-center mb-8">
+            <button id="coursesTabBtn" class="tab-button active">Cursos por Matéria</button>
+            <button id="checklistTabBtn" class="tab-button">Checklist de Missões</button>
+        </nav>
+
+        <main>
+            <section id="coursesContent" class="tab-content">
+                <h2 class="text-2xl font-semibold text-indigo-700 mb-4">Buscar Cursadas por Matéria</h2>
+                <div class="mb-6">
+                    <label for="subjectSelect" class="block text-lg font-medium text-gray-700 mb-2">Selecione uma matéria:</label>
+                    <select id="subjectSelect" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm">
+                        <option value="">-- Selecione --</option>
+                    </select>
+                </div>
+
+                <div id="courseResults" class="space-y-4">
+                    <p class="text-gray-600">Selecione uma matéria acima para ver as opções de cursada.</p>
+                </div>
+            </section>
+
+            <section id="checklistContent" class="tab-content hidden">
+                <h2 class="text-2xl font-semibold text-green-700 mb-4">Checklist de Missões Cruciais</h2>
+                <div id="missionsList" class="space-y-3">
+                    <!-- Missões serão carregadas aqui -->
+                </div>
+            </section>
+        </main>
+
+        <footer class="card text-center mt-8 bg-indigo-700 text-white">
+            <p class="text-sm opacity-90">Seu Parceiro de Estudos UBA 🎓</p>
+        </footer>
+    </div>
+
+    <script>
+        // Dados de todas as cursadas dos hospitais
+        const allCourses = [
+            // Hospital Alemão
+            { hospital: 'Hospital Alemão', subject: 'Medicina B', start: '11/08/2025', end: '19/12/2025', details: '' },
+            { hospital: 'Hospital Alemão', subject: 'Neumonologia', start: '28/07/2025', end: '08/08/2025', details: '' },
+            { hospital: 'Hospital Alemão', subject: 'Ginecologia', start: '11/08/2025', end: '12/09/2025', details: '' },
+            { hospital: 'Hospital Alemão', subject: 'Oftalmologia', start: '28/07/2025', end: '08/08/2025', details: '' },
+            { hospital: 'Hospital Alemão', subject: 'Otorrinolaringologia', start: '03/11/2025', end: '14/11/2025', details: '' },
+            { hospital: 'Hospital Alemão', subject: 'Urologia', start: '17/11/2025', end: '28/11/2025', details: '' },
+
+            // Hospital Argerich (apenas segundo semestre relevante)
+            { hospital: 'Hospital Argerich', subject: 'Medicina B', start: '11/08/2025', end: '19/12/2025', details: '' },
+            { hospital: 'Hospital Argerich', subject: 'Oftalmologia', start: '01/09/2025', end: '12/09/2025', details: '' }, // Assuming 2 semanas
+            { hospital: 'Hospital Argerich', subject: 'Urologia', start: '15/09/2025', end: '26/09/2025', details: '' }, // Assuming 2 semanas
+            { hospital: 'Hospital Argerich', subject: 'Otorrinolaringologia', start: '29/09/2025', end: '10/10/2025', details: '' }, // Assuming 2 semanas
+            { hospital: 'Hospital Argerich', subject: 'Cirurgia Geral', start: '13/10/2025', end: '19/12/2025', details: '' }, // Assuming until Dec 19
+
+            // Hospital Bocalandro
+            { hospital: 'Hospital Bocalandro', subject: 'Traumatologia', start: '28/07/2025', end: '08/08/2025', details: 'Carril Superior' },
+            { hospital: 'Hospital Bocalandro', subject: 'Neurocirurgia', start: '18/08/2025', end: '29/08/2025', details: 'Carril Superior' },
+            { hospital: 'Hospital Bocalandro', subject: 'Oftalmologia', start: '01/09/2025', end: '12/09/2025', details: 'Carril Superior' },
+            { hospital: 'Hospital Bocalandro', subject: 'Ginecologia', start: '15/09/2025', end: '17/10/2025', details: 'Carril Superior' },
+            { hospital: 'Hospital Bocalandro', subject: 'Urologia', start: '20/10/2025', end: '31/10/2025', details: 'Carril Superior' },
+            { hospital: 'Hospital Bocalandro', subject: 'Otorrinolaringologia', start: '03/11/2025', end: '14/11/2025', details: 'Carril Superior' },
+            { hospital: 'Hospital Bocalandro', subject: 'Obstetrícia', start: '17/11/2025', end: '19/12/2025', details: 'Carril Superior' },
+            { hospital: 'Hospital Bocalandro', subject: 'Otorrinolaringologia', start: '28/07/2025', end: '08/08/2025', details: 'Carril do Meio' },
+            { hospital: 'Hospital Bocalandro', subject: 'Oftalmologia', start: '28/07/2025', end: '08/08/2025', details: 'Carril do Meio' },
+            { hospital: 'Hospital Bocalandro', subject: 'Ginecologia', start: '11/08/2025', end: '12/09/2025', details: 'Carril do Meio' },
+            { hospital: 'Hospital Bocalandro', subject: 'Obstetrícia', start: '15/09/2025', end: '17/10/2025', details: 'Carril do Meio' },
+            { hospital: 'Hospital Bocalandro', subject: 'Neurocirurgia', start: '20/10/2025', end: '31/10/2025', details: 'Carril do Meio' },
+            { hospital: 'Hospital Bocalandro', subject: 'Otorrinolaringologia', start: '03/11/2025', end: '14/11/2025', details: 'Carril do Meio' },
+            { hospital: 'Hospital Bocalandro', subject: 'Urologia', start: '17/11/2025', end: '28/11/2025', details: 'Carril do Meio' },
+            { hospital: 'Hospital Bocalandro', subject: 'Oftalmologia', start: '01/12/2025', end: '19/12/2025', details: 'Carril do Meio' },
+            { hospital: 'Hospital Bocalandro', subject: 'Cirurgia Geral', start: '04/08/2025', end: '10/10/2025', details: 'Carril Inferior' },
+            { hospital: 'Hospital Bocalandro', subject: 'Pediatria', start: '13/10/2025', end: '19/12/2025', details: 'Carril Inferior' },
+            { hospital: 'Hospital Bocalandro', subject: 'Neumonologia', start: '28/07/2025', end: '11/08/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Bocalandro', subject: 'Neumonologia', start: '08/09/2025', end: '22/09/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Bocalandro', subject: 'Infectologia', start: '13/10/2025', end: '27/10/2025', details: 'Clínicas' },
+
+            // Hospital Britânico
+            { hospital: 'Hospital Britânico', subject: 'Traumatologia', start: '28/07/2025', end: '15/08/2025', details: '' },
+            { hospital: 'Hospital Britânico', subject: 'Neurocirurgia', start: '18/08/2025', end: '29/08/2025', details: '' },
+            { hospital: 'Hospital Britânico', subject: 'Oftalmologia', start: '01/09/2025', end: '12/09/2025', details: '' },
+            { hospital: 'Hospital Britânico', subject: 'Urologia', start: '15/09/2025', end: '26/09/2025', details: '' },
+            { hospital: 'Hospital Britânico', subject: 'Otorrinolaringologia', start: '29/09/2025', end: '10/10/2025', details: '' },
+            { hospital: 'Hospital Britânico', subject: 'Cirurgia Geral', start: '13/10/2025', end: '19/12/2025', details: '' },
+
+            // Hospital Campos de Mayo
+            { hospital: 'Hospital Campos de Mayo', subject: 'Cirurgia Geral', start: '04/08/2025', end: '10/10/2025', details: '' },
+            { hospital: 'Hospital Campos de Mayo', subject: 'Pediatria', start: '13/10/2025', end: '19/12/2025', details: '' },
+            { hospital: 'Hospital Campos de Mayo', subject: 'Radiologia', start: '21/07/2025', end: '01/08/2025', details: '' },
+
+            // Hospital Churruca
+            { hospital: 'Hospital Churruca', subject: 'Medicina B', start: '11/08/2025', end: '19/12/2025', details: '' },
+            { hospital: 'Hospital Churruca', subject: 'Oftalmologia', start: '28/07/2025', end: '08/08/2025', details: '' },
+            { hospital: 'Hospital Churruca', subject: 'Ginecologia', start: '11/08/2025', end: '12/09/2025', details: '' },
+            { hospital: 'Hospital Churruca', subject: 'Obstetrícia', start: '15/09/2025', end: '17/10/2025', details: '' },
+            { hospital: 'Hospital Churruca', subject: 'Neurocirurgia', start: '20/10/2025', end: '31/10/2025', details: '' },
+            { hospital: 'Hospital Churruca', subject: 'Otorrinolaringologia', start: '03/11/2025', end: '14/11/2025', details: '' },
+            { hospital: 'Hospital Churruca', subject: 'Urologia', start: '17/11/2025', end: '28/11/2025', details: '' },
+            { hospital: 'Hospital Churruca', subject: 'Oftalmologia', start: '01/12/2025', end: '19/12/2025', details: '' },
+
+            // Hospital de Clínicas
+            { hospital: 'Hospital de Clínicas', subject: 'Infectologia', start: '13/10/2025', end: '27/10/2025', details: '5º Ano Clínicas - Carril 7' },
+            { hospital: 'Hospital de Clínicas', subject: 'Psiquiatria', start: '08/09/2025', end: '22/09/2025', details: '5º Ano Clínicas - Carril 7' },
+            { hospital: 'Hospital de Clínicas', subject: 'Neumonologia', start: '08/09/2025', end: '22/09/2025', details: '5º Ano Clínicas - Carril 6' },
+            { hospital: 'Hospital de Clínicas', subject: 'Neurologia', start: '22/09/2025', end: '10/10/2025', details: '5º Ano Clínicas - Carril 8' },
+            { hospital: 'Hospital de Clínicas', subject: 'Dermatologia', start: '27/10/2025', end: '10/11/2025', details: '5º Ano Clínicas - Carril 8' },
+            { hospital: 'Hospital de Clínicas', subject: 'Radiologia', start: '13/10/2025', end: '27/10/2025', details: '5º Ano Clínicas - Carril 8' },
+            { hospital: 'Hospital de Clínicas', subject: 'Nutrição', start: '10/11/2025', end: '24/11/2025', details: '5º Ano Clínicas - Carril 9' },
+            { hospital: 'Hospital de Clínicas', subject: 'Medicina B', start: '11/08/2025', end: '19/12/2025', details: '5º Ano Clínicas - Cátedra I, Carril 1' },
+            { hospital: 'Hospital de Clínicas', subject: 'Cirurgia Geral', start: '04/08/2025', end: '10/10/2025', details: '6º Ano Cirúrgicas - Carril 7' },
+            { hospital: 'Hospital de Clínicas', subject: 'Pediatria', start: '04/08/2025', end: '10/10/2025', details: '6º Ano Cirúrgicas - Carril 8' },
+            { hospital: 'Hospital de Clínicas', subject: 'Urologia', start: '28/07/2025', end: '15/08/2025', details: '6º Ano Cirúrgicas - Carril 1' },
+            { hospital: 'Hospital de Clínicas', subject: 'Oftalmologia', start: '01/09/2025', end: '12/09/2025', details: '6º Ano Cirúrgicas - Carril 1' },
+            { hospital: 'Hospital de Clínicas', subject: 'Otorrinolaringologia', start: '15/09/2025', end: '26/09/2025', details: '6º Ano Cirúrgicas - Carril 1' },
+            { hospital: 'Hospital de Clínicas', subject: 'Ginecologia', start: '29/09/2025', end: '10/10/2025', details: '6º Ano Cirúrgicas - Carril 1' },
+            { hospital: 'Hospital de Clínicas', subject: 'Obstetrícia', start: '13/10/2025', end: '19/12/2025', details: '6º Ano Cirúrgicas - Carril 1' },
+            { hospital: 'Hospital de Clínicas', subject: 'Neurocirurgia', start: '17/11/2025', end: '28/11/2025', details: '6º Ano Cirúrgicas - Carril 1' },
+
+            // Hospital Durand
+            { hospital: 'Hospital Durand', subject: 'Obstetrícia', start: '30/06/2025', end: '01/08/2025', details: 'Carril A/B' },
+            { hospital: 'Hospital Durand', subject: 'Otorrinolaringologia', start: '21/07/2025', end: '01/08/2025', details: 'Carril A/B' },
+            { hospital: 'Hospital Durand', subject: 'Traumatologia', start: '30/06/2025', end: '18/07/2025', details: 'Carril A/B' },
+            { hospital: 'Hospital Durand', subject: 'Neumonologia', start: '28/07/2025', end: '11/08/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Durand', subject: 'Radiologia', start: '28/07/2025', end: '08/08/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Durand', subject: 'Infectologia', start: '11/08/2025', end: '05/09/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Durand', subject: 'Neumonologia', start: '05/05/2025', end: '19/05/2025', details: 'Clínicas' }, // Already passed
+            { hospital: 'Hospital Durand', subject: 'Neumonologia', start: '28/07/2025', end: '08/08/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Durand', subject: 'Neumonologia', start: '27/10/2025', end: '10/11/2025', details: 'Clínicas' },
+
+            // Hospital Evita de Lanús
+            { hospital: 'Hospital Evita de Lanús', subject: 'Pediatria', start: '19/05/2025', end: '28/07/2025', details: 'Alunos 2023' }, // Ending soon
+            { hospital: 'Hospital Evita de Lanús', subject: 'Urologia', start: '28/07/2025', end: '18/08/2025', details: 'Alunos 2023' },
+            { hospital: 'Hospital Evita de Lanús', subject: 'Oftalmologia', start: '28/07/2025', end: '18/08/2025', details: 'Alunos 2023' },
+            { hospital: 'Hospital Evita de Lanús', subject: 'Cirurgia Geral', start: '19/05/2025', end: '25/07/2025', details: 'Alunos 2023' }, // Ending soon
+            { hospital: 'Hospital Evita de Lanús', subject: 'Otorrinolaringologia', start: '25/07/2025', end: '25/08/2025', details: 'Alunos 2023' },
+            { hospital: 'Hospital Evita de Lanús', subject: 'Otorrinolaringologia', start: '11/08/2025', end: '27/08/2025', details: 'Alunos 2024' },
+            { hospital: 'Hospital Evita de Lanús', subject: 'Oftalmologia', start: '11/08/2025', end: '27/08/2025', details: 'Alunos 2024' },
+            { hospital: 'Hospital Evita de Lanús', subject: 'Ginecologia', start: '15/09/2025', end: '29/09/2025', details: 'Alunos 2024' },
+            { hospital: 'Hospital Evita de Lanús', subject: 'Neurocirurgia', start: '20/10/2025', end: '03/11/2025', details: 'Alunos 2024' },
+            { hospital: 'Hospital Evita de Lanús', subject: 'Oftalmologia', start: '20/10/2025', end: '03/11/2025', details: 'Alunos 2024' },
+            { hospital: 'Hospital Evita de Lanús', subject: 'Obstetrícia', start: '04/11/2025', end: '17/11/2025', details: 'Alunos 2024' },
+            { hospital: 'Hospital Evita de Lanús', subject: 'Pediatria', start: '10/10/2025', end: '19/12/2025', details: 'Alunos 2024' },
+
+            // Hospital Fernández
+            { hospital: 'Hospital Fernández', subject: 'Neumonologia', start: '21/07/2025', end: '01/08/2025', details: '2º Ano - Comisión A' },
+            { hospital: 'Hospital Fernández', subject: 'Psiquiatria', start: '11/08/2025', end: '05/09/2025', details: '2º Ano - Comisión A' },
+            { hospital: 'Hospital Fernández', subject: 'Neurologia', start: '08/09/2025', end: '26/09/2025', details: '2º Ano - Comisión A' },
+            { hospital: 'Hospital Fernández', subject: 'Diagnóstico por Imágenes', start: '29/09/2025', end: '10/10/2025', details: '2º Ano - Comisión A' },
+            { hospital: 'Hospital Fernández', subject: 'Dermatologia', start: '10/11/2025', end: '28/11/2025', details: '2º Ano - Comisión A' },
+            { hospital: 'Hospital Fernández', subject: 'Nutrição', start: '01/12/2025', end: '12/12/2025', details: '2º Ano - Comisión A' },
+            { hospital: 'Hospital Fernández', subject: 'Dermatologia', start: '08/09/2025', end: '26/09/2025', details: '2º Ano - Comisión B' },
+            { hospital: 'Hospital Fernández', subject: 'Nutrição', start: '29/09/2025', end: '10/10/2025', details: '2º Ano - Comisión B' },
+            { hospital: 'Hospital Fernández', subject: 'Neurologia', start: '10/11/2025', end: '21/11/2025', details: '2º Ano - Comisión B' },
+            { hospital: 'Hospital Fernández', subject: 'Neumonologia', start: '24/11/2025', end: '12/12/2025', details: '2º Ano - Comisión B' },
+            { hospital: 'Hospital Fernández', subject: 'Infectologia', start: '13/10/2025', end: '07/11/2025', details: 'Comum a ambas comissões' },
+            { hospital: 'Hospital Fernández', subject: 'Toxicologia', start: '12/08/2025', end: '06/11/2025', details: 'Vespertina, Comum a ambas comissões' },
+            { hospital: 'Hospital Fernández', subject: 'Urologia', start: '21/07/2025', end: '01/08/2025', details: '3º Ano - Comisión A' },
+            { hospital: 'Hospital Fernández', subject: 'Pediatria', start: '04/08/2025', end: '10/10/2025', details: '3º Ano - Comisión A' },
+            { hospital: 'Hospital Fernández', subject: 'Ginecologia', start: '13/10/2025', end: '14/11/2025', details: '3º Ano - Comisión A' },
+            { hospital: 'Hospital Fernández', subject: 'Obstetrícia', start: '17/11/2025', end: '19/12/2025', details: '3º Ano - Comisión A' },
+            { hospital: 'Hospital Fernández', subject: 'Ginecologia', start: '01/09/2025', end: '03/10/2025', details: '3º Ano - Comisión B' },
+            { hospital: 'Hospital Fernández', subject: 'Obstetrícia', start: '08/10/2025', end: '07/11/2025', details: '3º Ano - Comisión B' },
+            { hospital: 'Hospital Fernández', subject: 'Otorrinolaringologia', start: '24/11/2025', end: '05/12/2025', details: '3º Ano - Comisión B' },
+            { hospital: 'Hospital Fernández', subject: 'Urologia', start: '08/12/2025', end: '19/12/2025', details: '3º Ano - Comisión B' },
+
+            // Hospital Fiorito
+            { hospital: 'Hospital Fiorito', subject: 'Oftalmologia', start: '28/07/2025', end: '08/08/2025', details: 'Linha 1' },
+            { hospital: 'Hospital Fiorito', subject: 'Otorrinolaringologia', start: '11/08/2025', end: '22/08/2025', details: 'Linha 1' },
+            { hospital: 'Hospital Fiorito', subject: 'Traumatologia', start: '25/08/2025', end: '12/09/2025', details: 'Linha 1' },
+            { hospital: 'Hospital Fiorito', subject: 'Ginecologia', start: '15/09/2025', end: '17/10/2025', details: 'Linha 1' },
+            { hospital: 'Hospital Fiorito', subject: 'Urologia', start: '20/10/2025', end: '31/10/2025', details: 'Linha 1' },
+            { hospital: 'Hospital Fiorito', subject: 'Neurocirurgia', start: '03/11/2025', end: '14/11/2025', details: 'Linha 1' },
+            { hospital: 'Hospital Fiorito', subject: 'Obstetrícia', start: '17/11/2025', end: '19/12/2025', details: 'Linha 1' },
+            { hospital: 'Hospital Fiorito', subject: 'Urologia', start: '28/07/2025', end: '08/08/2025', details: 'Linha 2' },
+            { hospital: 'Hospital Fiorito', subject: 'Ginecologia', start: '11/08/2025', end: '22/08/2025', details: 'Linha 2' },
+            { hospital: 'Hospital Fiorito', subject: 'Obstetrícia', start: '25/08/2025', end: '12/09/2025', details: 'Linha 2' },
+            { hospital: 'Hospital Fiorito', subject: 'Neurocirurgia', start: '15/09/2025', end: '10/10/2025', details: 'Linha 2' },
+            { hospital: 'Hospital Fiorito', subject: 'Otorrinolaringologia', start: '13/10/2025', end: '24/10/2025', details: 'Linha 2' },
+            { hospital: 'Hospital Fiorito', subject: 'Oftalmologia', start: '27/10/2025', end: '14/11/2025', details: 'Linha 2' },
+            { hospital: 'Hospital Fiorito', subject: 'Traumatologia', start: '17/11/2025', end: '19/12/2025', details: 'Linha 2' },
+            { hospital: 'Hospital Fiorito', subject: 'Obstetrícia', start: '30/06/2025', end: '18/07/2025', details: 'Linha 3' }, // Ending soon
+            { hospital: 'Hospital Fiorito', subject: 'Pediatria', start: '21/07/2025', end: '10/10/2025', details: 'Linha 3' },
+            { hospital: 'Hospital Fiorito', subject: 'Cirurgia Geral', start: '13/10/2025', end: '19/12/2025', details: 'Linha 3' },
+            { hospital: 'Hospital Fiorito', subject: 'Ginecologia', start: '28/07/2025', end: '15/09/2025', details: 'Linha 4' },
+            { hospital: 'Hospital Fiorito', subject: 'Neumonologia', start: '24/11/2025', end: '19/12/2025', details: 'Linha 4' },
+
+            // Hospital Italiano
+            { hospital: 'Hospital Italiano', subject: 'Nutrição', start: '28/07/2025', end: '08/08/2025', details: '' },
+            { hospital: 'Hospital Italiano', subject: 'Psiquiatria', start: '11/08/2025', end: '05/09/2025', details: '' },
+            { hospital: 'Hospital Italiano', subject: 'Infectologia', start: '08/09/2025', end: '03/10/2025', details: '' },
+            { hospital: 'Hospital Italiano', subject: 'Neumonologia', start: '06/10/2025', end: '17/10/2025', details: '' },
+            { hospital: 'Hospital Italiano', subject: 'Dermatologia', start: '20/10/2025', end: '07/11/2025', details: '' },
+            { hospital: 'Hospital Italiano', subject: 'Radiologia', start: '10/11/2025', end: '21/11/2025', details: '' },
+            { hospital: 'Hospital Italiano', subject: 'Neurologia', start: '24/11/2025', end: '12/12/2025', details: '' },
+            { hospital: 'Hospital Italiano', subject: 'Obstetrícia', start: '30/06/2025', end: '01/08/2025', details: '' }, // Ending soon
+            { hospital: 'Hospital Italiano', subject: 'Pediatria', start: '04/08/2025', end: '10/10/2025', details: '' },
+            { hospital: 'Hospital Italiano', subject: 'Cirurgia Geral', start: '13/10/2025', end: '19/12/2025', details: '' },
+
+            // Hospital Lanari
+            { hospital: 'Hospital Lanari', subject: 'Neumonologia', start: '28/07/2025', end: '11/08/2025', details: '' },
+            { hospital: 'Hospital Lanari', subject: 'Neurologia', start: '21/07/2025', end: '08/08/2025', details: '' },
+            { hospital: 'Hospital Lanari', subject: 'Dermatologia', start: '18/08/2025', end: '05/09/2025', details: '' },
+            { hospital: 'Hospital Lanari', subject: 'Neumonologia', start: '08/09/2025', end: '19/09/2025', details: '' },
+            { hospital: 'Hospital Lanari', subject: 'Radiologia', start: '22/09/2025', end: '03/10/2025', details: '' },
+            { hospital: 'Hospital Lanari', subject: 'Infectologia', start: '13/10/2025', end: '27/10/2025', details: '' },
+            { hospital: 'Hospital Lanari', subject: 'Psiquiatria', start: '27/10/2025', end: '10/11/2025', details: '' },
+            { hospital: 'Hospital Lanari', subject: 'Nutrição', start: '10/11/2025', end: '24/11/2025', details: '' },
+
+            // Hospital Larcade
+            { hospital: 'Hospital Larcade', subject: 'Oftalmologia', start: '28/07/2025', end: '15/08/2025', details: '6º Ano Grupo A' },
+            { hospital: 'Hospital Larcade', subject: 'Neurocirurgia', start: '18/08/2025', end: '29/08/2025', details: '6º Ano Grupo A' },
+            { hospital: 'Hospital Larcade', subject: 'Oftalmologia', start: '01/09/2025', end: '12/09/2025', details: '6º Ano Grupo A' },
+            { hospital: 'Hospital Larcade', subject: 'Ginecologia', start: '15/09/2025', end: '17/10/2025', details: '6º Ano Grupo A' },
+            { hospital: 'Hospital Larcade', subject: 'Urologia', start: '20/10/2025', end: '31/10/2025', details: '6º Ano Grupo A' },
+            { hospital: 'Hospital Larcade', subject: 'Otorrinolaringologia', start: '03/11/2025', end: '14/11/2025', details: '6º Ano Grupo A' },
+            { hospital: 'Hospital Larcade', subject: 'Obstetrícia', start: '17/11/2025', end: '19/12/2025', details: '6º Ano Grupo A' },
+            { hospital: 'Hospital Larcade', subject: 'Obstetrícia', start: '30/06/2025', end: '01/08/2025', details: '6º Ano Grupo B' }, // Ending soon
+            { hospital: 'Hospital Larcade', subject: 'Pediatria', start: '04/08/2025', end: '10/10/2025', details: '6º Ano Grupo B' },
+            { hospital: 'Hospital Larcade', subject: 'Cirurgia Geral', start: '13/10/2025', end: '19/12/2025', details: '6º Ano Grupo B' },
+            { hospital: 'Hospital Larcade', subject: 'Neurologia', start: '21/07/2025', end: '08/08/2025', details: '5º Ano Grupo A' },
+            { hospital: 'Hospital Larcade', subject: 'Dermatologia', start: '18/08/2025', end: '05/09/2025', details: '5º Ano Grupo A' },
+            { hospital: 'Hospital Larcade', subject: 'Neumonologia', start: '08/09/2025', end: '19/09/2025', details: '5º Ano Grupo A' },
+            { hospital: 'Hospital Larcade', subject: 'Radiologia', start: '22/09/2025', end: '03/10/2025', details: '5º Ano Grupo A' },
+            { hospital: 'Hospital Larcade', subject: 'Infectologia', start: '13/10/2025', end: '07/11/2025', details: '5º Ano Grupo A' },
+            { hospital: 'Hospital Larcade', subject: 'Psiquiatria', start: '10/11/2025', end: '21/11/2025', details: '5º Ano Grupo A' },
+            { hospital: 'Hospital Larcade', subject: 'Nutrição', start: '08/12/2025', end: '19/12/2025', details: '5º Ano Grupo A' },
+            { hospital: 'Hospital Larcade', subject: 'Dermatologia', start: '21/07/2025', end: '08/08/2025', details: '5º Ano Grupo B' },
+            { hospital: 'Hospital Larcade', subject: 'Neurologia', start: '18/08/2025', end: '05/09/2025', details: '5º Ano Grupo B' },
+            { hospital: 'Hospital Larcade', subject: 'Psiquiatria', start: '08/09/2025', end: '03/10/2025', details: '5º Ano Grupo B' },
+            { hospital: 'Hospital Larcade', subject: 'Radiologia', start: '13/10/2025', end: '24/10/2025', details: '5º Ano Grupo B' },
+            { hospital: 'Hospital Larcade', subject: 'Nutrição', start: '27/10/2025', end: '07/11/2025', details: '5º Ano Grupo B' },
+            { hospital: 'Hospital Larcade', subject: 'Infectologia', start: '10/11/2025', end: '05/12/2025', details: '5º Ano Grupo B' },
+            { hospital: 'Hospital Larcade', subject: 'Neumonologia', start: '08/12/2025', end: '19/12/2025', details: '5º Ano Grupo B' },
+
+            // Hospital Malvinas
+            { hospital: 'Hospital Malvinas', subject: 'Neurocirurgia', start: '28/07/2025', end: '08/08/2025', details: '' },
+            { hospital: 'Hospital Malvinas', subject: 'Psiquiatria', start: '11/08/2025', end: '05/09/2025', details: '' },
+            { hospital: 'Hospital Malvinas', subject: 'Urologia', start: '08/09/2025', end: '26/09/2025', details: '' },
+            { hospital: 'Hospital Malvinas', subject: 'Otorrinolaringologia', start: '29/09/2025', end: '10/10/2025', details: '' },
+            { hospital: 'Hospital Malvinas', subject: 'Diagnóstico por Imágenes', start: '13/10/2025', end: '24/10/2025', details: '' },
+            { hospital: 'Hospital Malvinas', subject: 'Nutrição', start: '27/10/2025', end: '07/11/2025', details: '(Ubicar)' },
+            { hospital: 'Hospital Malvinas', subject: 'Obstetrícia', start: '17/11/2025', end: '12/12/2025', details: '' },
+
+            // Hospital Milstein
+            { hospital: 'Hospital Milstein', subject: 'Otorrinolaringologia', start: '11/08/2025', end: '22/08/2025', details: '' },
+            { hospital: 'Hospital Milstein', subject: 'Traumatologia', start: '25/08/2025', end: '12/09/2025', details: '' },
+            { hospital: 'Hospital Milstein', subject: 'Urologia', start: '15/09/2025', end: '26/09/2025', details: '' },
+            { hospital: 'Hospital Milstein', subject: 'Dermatologia', start: '29/09/2025', end: '17/10/2025', details: '' },
+            { hospital: 'Hospital Milstein', subject: 'Neurologia', start: '20/10/2025', end: '07/11/2025', details: '' },
+            { hospital: 'Hospital Milstein', subject: 'Neurocirurgia', start: '10/11/2025', end: '21/11/2025', details: '' },
+            { hospital: 'Hospital Milstein', subject: 'Infectologia', start: '24/11/2025', end: '19/12/2025', details: '' },
+
+            // Hospital Moreno
+            { hospital: 'Hospital Moreno', subject: 'Neumonologia', start: '28/07/2025', end: '11/08/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Moreno', subject: 'Urologia', start: '28/07/2025', end: '15/08/2025', details: 'Cirúrgicas - Linha Superior' },
+            { hospital: 'Hospital Moreno', subject: 'Oftalmologia', start: '28/07/2025', end: '15/08/2025', details: 'Cirúrgicas - Linha Superior' },
+            { hospital: 'Hospital Moreno', subject: 'Neurocirurgia', start: '18/08/2025', end: '29/08/2025', details: 'Cirúrgicas - Linha Superior' },
+            { hospital: 'Hospital Moreno', subject: 'Ginecologia', start: '01/09/2025', end: '12/09/2025', details: 'Cirúrgicas - Linha Superior' },
+            { hospital: 'Hospital Moreno', subject: 'Obstetrícia', start: '15/09/2025', end: '26/09/2025', details: 'Cirúrgicas - Linha Superior' },
+            { hospital: 'Hospital Moreno', subject: 'Otorrinolaringologia', start: '29/09/2025', end: '10/10/2025', details: 'Cirúrgicas - Linha Superior' },
+            { hospital: 'Hospital Moreno', subject: 'Urologia', start: '13/10/2025', end: '24/10/2025', details: 'Cirúrgicas - Linha Superior' },
+            { hospital: 'Hospital Moreno', subject: 'Neurocirurgia', start: '27/10/2025', end: '07/11/2025', details: 'Cirúrgicas - Linha Superior' },
+            { hospital: 'Hospital Moreno', subject: 'Oftalmologia', start: '10/11/2025', end: '21/11/2025', details: 'Cirúrgicas - Linha Superior' },
+            { hospital: 'Hospital Moreno', subject: 'Obstetrícia', start: '24/11/2025', end: '19/12/2025', details: 'Cirúrgicas - Linha Superior' },
+            { hospital: 'Hospital Moreno', subject: 'Ginecologia', start: '28/07/2025', end: '15/08/2025', details: 'Cirúrgicas - Linha do Meio' },
+            { hospital: 'Hospital Moreno', subject: 'Otorrinolaringologia', start: '18/08/2025', end: '29/08/2025', details: 'Cirúrgicas - Linha do Meio' },
+            { hospital: 'Hospital Moreno', subject: 'Neurocirurgia', start: '01/09/2025', end: '12/09/2025', details: 'Cirúrgicas - Linha do Meio' },
+            { hospital: 'Hospital Moreno', subject: 'Oftalmologia', start: '15/09/2025', end: '26/09/2025', details: 'Cirúrgicas - Linha do Meio' },
+            { hospital: 'Hospital Moreno', subject: 'Urologia', start: '29/09/2025', end: '10/10/2025', details: 'Cirúrgicas - Linha do Meio' },
+            { hospital: 'Hospital Moreno', subject: 'Obstetrícia', start: '13/10/2025', end: '24/10/2025', details: 'Cirúrgicas - Linha do Meio' },
+            { hospital: 'Hospital Moreno', subject: 'Otorrinolaringologia', start: '27/10/2025', end: '07/11/2025', details: 'Cirúrgicas - Linha do Meio' },
+            { hospital: 'Hospital Moreno', subject: 'Neurocirurgia', start: '10/11/2025', end: '21/11/2025', details: 'Cirúrgicas - Linha do Meio' },
+            { hospital: 'Hospital Moreno', subject: 'Oftalmologia', start: '24/11/2025', end: '19/12/2025', details: 'Cirúrgicas - Linha do Meio' },
+
+            // Hospital Muniz
+            { hospital: 'Hospital Muniz', subject: 'Neumonologia', start: '28/07/2025', end: '11/08/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Muniz', subject: 'Obstetrícia', start: '25/07/2025', end: '08/08/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Muniz', subject: 'Neurocirurgia', start: '28/07/2025', end: '11/08/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Muniz', subject: 'Ginecologia', start: '08/08/2025', end: '29/08/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Muniz', subject: 'Oftalmologia', start: '28/07/2025', end: '11/08/2025', details: 'Cirúrgicas' },
+
+            // Hospital Naval
+            { hospital: 'Hospital Naval', subject: 'Diagnóstico por Imágenes', start: '28/07/2025', end: '08/08/2025', details: '' },
+            { hospital: 'Hospital Naval', subject: 'Infectologia', start: '11/08/2025', end: '05/09/2025', details: '' },
+            { hospital: 'Hospital Naval', subject: 'Nutrição', start: '08/09/2025', end: '19/09/2025', details: '' },
+            { hospital: 'Hospital Naval', subject: 'Neurologia', start: '22/09/2025', end: '10/10/2025', details: '' },
+            { hospital: 'Hospital Naval', subject: 'Psiquiatria', start: '13/10/2025', end: '07/11/2025', details: '' },
+            { hospital: 'Hospital Naval', subject: 'Neumonologia', start: '10/11/2025', end: '21/11/2025', details: '' },
+            { hospital: 'Hospital Naval', subject: 'Dermatologia', start: '24/11/2025', end: '12/12/2025', details: '' },
+            { hospital: 'Hospital Naval', subject: 'Obstetrícia', start: '30/06/2025', end: '01/08/2025', details: '' }, // Ending soon
+            { hospital: 'Hospital Naval', subject: 'Pediatria', start: '04/08/2025', end: '10/10/2025', details: '' },
+            { hospital: 'Hospital Naval', subject: 'Cirurgia Geral', start: '13/10/2025', end: '19/12/2025', details: '' },
+
+            // Hospital Oñativia
+            { hospital: 'Hospital Oñativia', subject: 'Urologia', start: '28/07/2025', end: '08/08/2025', details: 'Linha do Meio' },
+            { hospital: 'Hospital Oñativia', subject: 'Obstetrícia', start: '11/08/2025', end: '12/09/2025', details: 'Linha do Meio' },
+            { hospital: 'Hospital Oñativia', subject: 'Neurocirurgia', start: '15/09/2025', end: '26/09/2025', details: 'Linha do Meio' },
+            { hospital: 'Hospital Oñativia', subject: 'Otorrinolaringologia', start: '29/09/2025', end: '10/10/2025', details: 'Linha do Meio' },
+            { hospital: 'Hospital Oñativia', subject: 'Radiologia', start: '13/10/2025', end: '24/10/2025', details: 'Linha do Meio' },
+            { hospital: 'Hospital Oñativia', subject: 'Oftalmologia', start: '27/10/2025', end: '14/11/2025', details: 'Linha do Meio' },
+            { hospital: 'Hospital Oñativia', subject: 'Ginecologia', start: '17/11/2025', end: '19/12/2025', details: 'Linha do Meio' },
+            { hospital: 'Hospital Oñativia', subject: 'Oftalmologia', start: '28/07/2025', end: '08/08/2025', details: 'Linha Inferior' },
+
+            // Hospital Paroissien
+            { hospital: 'Hospital Paroissien', subject: 'Neurologia', start: '21/07/2025', end: '08/08/2025', details: '' },
+            { hospital: 'Hospital Paroissien', subject: 'Medicina B', start: '11/08/2025', end: '19/12/2025', details: '' },
+
+            // Hospital Penna
+            { hospital: 'Hospital Penna', subject: 'Ginecologia', start: '28/07/2025', end: '11/08/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Penna', subject: 'Obstetrícia', start: '15/09/2025', end: '26/09/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Penna', subject: 'Neurocirurgia', start: '20/10/2025', end: '31/10/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Penna', subject: 'Otorrinolaringologia', start: '03/11/2025', end: '14/11/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Penna', subject: 'Urologia', start: '17/11/2025', end: '28/11/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Penna', subject: 'Oftalmologia', start: '01/12/2025', end: '19/12/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Penna', subject: 'Neurologia', start: '21/07/2025', end: '08/08/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Penna', subject: 'Dermatologia', start: '18/08/2025', end: '05/09/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Penna', subject: 'Neumonologia', start: '08/09/2025', end: '19/09/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Penna', subject: 'Radiologia', start: '22/09/2025', end: '03/10/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Penna', subject: 'Infectologia', start: '13/10/2025', end: '27/10/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Penna', subject: 'Psiquiatria', start: '27/10/2025', end: '10/11/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Penna', subject: 'Nutrição', start: '10/11/2025', end: '24/11/2025', details: 'Clínicas' },
+
+            // Hospital Piñero
+            { hospital: 'Hospital Piñero', subject: 'Neurocirurgia', start: '28/07/2025', end: '08/08/2025', details: 'Linha Superior' },
+            { hospital: 'Hospital Piñero', subject: 'Medicina B', start: '11/08/2025', end: '19/12/2025', details: 'Linha do Meio' },
+            { hospital: 'Hospital Piñero', subject: 'Ginecologia', start: '30/06/2025', end: '01/08/2025', details: 'Linha Inferior' }, // Ending soon
+            { hospital: 'Hospital Piñero', subject: 'Oftalmologia', start: '30/06/2025', end: '18/07/2025', details: 'Linha Inferior' }, // Ending soon
+            { hospital: 'Hospital Piñero', subject: 'Urologia', start: '21/07/2025', end: '01/08/2025', details: 'Linha Inferior' },
+
+            // Hospital Posadas
+            { hospital: 'Hospital Posadas', subject: 'Traumatologia', start: '28/07/2025', end: '15/08/2025', details: 'Grupo 1' },
+            { hospital: 'Hospital Posadas', subject: 'Neurocirurgia', start: '18/08/2025', end: '29/08/2025', details: 'Grupo 1' },
+            { hospital: 'Hospital Posadas', subject: 'Oftalmologia', start: '01/09/2025', end: '12/09/2025', details: 'Grupo 1' },
+            { hospital: 'Hospital Posadas', subject: 'Ginecologia', start: '15/09/2025', end: '17/10/2025', details: 'Grupo 1' },
+            { hospital: 'Hospital Posadas', subject: 'Urologia', start: '20/10/2025', end: '31/10/2025', details: 'Grupo 1' },
+            { hospital: 'Hospital Posadas', subject: 'Otorrinolaringologia', start: '03/11/2025', end: '14/11/2025', details: 'Grupo 1' },
+            { hospital: 'Hospital Posadas', subject: 'Obstetrícia', start: '17/11/2025', end: '19/12/2025', details: 'Grupo 1' },
+            { hospital: 'Hospital Posadas', subject: 'Obstetrícia', start: '30/06/2025', end: '01/08/2025', details: 'Grupo 2' }, // Ending soon
+            { hospital: 'Hospital Posadas', subject: 'Pediatria', start: '04/08/2025', end: '10/10/2025', details: 'Grupo 2' },
+            { hospital: 'Hospital Posadas', subject: 'Cirurgia Geral', start: '13/10/2025', end: '19/12/2025', details: 'Grupo 2' },
+            { hospital: 'Hospital Posadas', subject: 'Ginecologia', start: '30/06/2025', end: '01/08/2025', details: 'Grupo 3' }, // Ending soon
+            { hospital: 'Hospital Posadas', subject: 'Cirurgia Geral', start: '04/08/2025', end: '04/10/2025', details: 'Grupo 3' },
+            { hospital: 'Hospital Posadas', subject: 'Pediatria', start: '13/10/2025', end: '19/12/2025', details: 'Grupo 3' },
+
+            // Hospital Ramos Mejía
+            { hospital: 'Hospital Ramos Mejía', subject: 'Urologia', start: '21/07/2025', end: '01/08/2025', details: '' },
+            { hospital: 'Hospital Ramos Mejía', subject: 'Pediatria', start: '04/08/2025', end: '10/10/2025', details: '' },
+            { hospital: 'Hospital Ramos Mejía', subject: 'Ginecologia', start: '13/10/2025', end: '14/11/2025', details: '' },
+            { hospital: 'Hospital Ramos Mejía', subject: 'Obstetrícia', start: '17/11/2025', end: '19/12/2025', details: '' },
+            { hospital: 'Hospital Ramos Mejía', subject: 'Cirurgia Geral', start: '04/08/2025', end: '10/10/2025', details: '' },
+            { hospital: 'Hospital Ramos Mejía', subject: 'Pediatria', start: '13/10/2025', end: '19/12/2025', details: '' },
+
+            // Hospital Rivadavia
+            { hospital: 'Hospital Rivadavia', subject: 'Neurologia', start: '21/07/2025', end: '08/08/2025', details: 'Clínicas - Almandoz' },
+            { hospital: 'Hospital Rivadavia', subject: 'Medicina B', start: '11/08/2025', end: '19/12/2025', details: 'Clínicas - Almandoz' },
+            { hospital: 'Hospital Rivadavia', subject: 'Nutrição', start: '28/07/2025', end: '08/08/2025', details: 'Clínicas - Abaca' },
+            { hospital: 'Hospital Rivadavia', subject: 'Psiquiatria', start: '11/08/2025', end: '05/09/2025', details: 'Clínicas - Abaca' },
+            { hospital: 'Hospital Rivadavia', subject: 'Neumonologia', start: '08/09/2025', end: '19/09/2025', details: 'Clínicas - Abaca' },
+            { hospital: 'Hospital Rivadavia', subject: 'Dermatologia', start: '22/09/2025', end: '10/10/2025', details: 'Clínicas - Abaca' },
+            { hospital: 'Hospital Rivadavia', subject: 'Neurologia', start: '20/10/2025', end: '07/11/2025', details: 'Clínicas - Abaca' },
+            { hospital: 'Hospital Rivadavia', subject: 'Infectologia', start: '10/11/2025', end: '05/12/2025', details: 'Clínicas - Abaca' },
+            { hospital: 'Hospital Rivadavia', subject: 'Obstetrícia', start: '30/06/2025', end: '01/08/2025', details: 'Cirúrgicas - Acosta' }, // Ending soon
+
+            // Hospital Roffo
+            { hospital: 'Hospital Roffo', subject: 'Oftalmologia', start: '28/07/2025', end: '08/08/2025', details: 'Linha Superior' },
+            { hospital: 'Hospital Roffo', subject: 'Otorrinolaringologia', start: '11/08/2025', end: '22/08/2025', details: 'Linha Superior' },
+            { hospital: 'Hospital Roffo', subject: 'Neurocirurgia', start: '15/09/2025', end: '26/09/2025', details: 'Linha Superior' },
+            { hospital: 'Hospital Roffo', subject: 'Urologia', start: '29/09/2025', end: '10/10/2025', details: 'Linha Superior' },
+            { hospital: 'Hospital Roffo', subject: 'Pediatria', start: '13/10/2025', end: '19/12/2025', details: 'Linha Superior' },
+            { hospital: 'Hospital Roffo', subject: 'Oftalmologia', start: '30/06/2025', end: '18/07/2025', details: 'Linha Inferior' }, // Ending soon
+            { hospital: 'Hospital Roffo', subject: 'Oftalmologia', start: '21/07/2025', end: '01/08/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital Roffo', subject: 'Ginecologia', start: '11/08/2025', end: '12/09/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital Roffo', subject: 'Infectologia', start: '13/10/2025', end: '14/11/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital Roffo', subject: 'Oftalmologia', start: '27/10/2025', end: '14/11/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital Roffo', subject: 'Otorrinolaringologia', start: '03/11/2025', end: '14/11/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital Roffo', subject: 'Obstetrícia', start: '17/11/2025', end: '19/12/2025', details: 'Linha Inferior' },
+
+            // Hospital San Isidro
+            { hospital: 'Hospital San Isidro', subject: 'Oftalmologia', start: '28/07/2025', end: '15/08/2025', details: 'Linha Superior' },
+            { hospital: 'Hospital San Isidro', subject: 'Neurocirurgia', start: '18/08/2025', end: '29/08/2025', details: 'Linha Superior' },
+            { hospital: 'Hospital San Isidro', subject: 'Ginecologia', start: '01/09/2025', end: '12/09/2025', details: 'Linha Superior' },
+            { hospital: 'Hospital San Isidro', subject: 'Otorrinolaringologia', start: '15/09/2025', end: '26/09/2025', details: 'Linha Superior' },
+            { hospital: 'Hospital San Isidro', subject: 'Obstetrícia', start: '29/09/2025', end: '10/10/2025', details: 'Linha Superior' },
+            { hospital: 'Hospital San Isidro', subject: 'Urologia', start: '13/10/2025', end: '24/10/2025', details: 'Linha Superior' },
+            { hospital: 'Hospital San Isidro', subject: 'Oftalmologia', start: '27/10/2025', end: '07/11/2025', details: 'Linha Superior' },
+            { hospital: 'Hospital San Isidro', subject: 'Obstetrícia', start: '10/11/2025', end: '19/12/2025', details: 'Linha Superior' },
+            { hospital: 'Hospital San Isidro', subject: 'Ginecologia', start: '28/07/2025', end: '11/08/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital San Isidro', subject: 'Oftalmologia', start: '28/07/2025', end: '08/08/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital San Isidro', subject: 'Obstetrícia', start: '11/08/2025', end: '22/08/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital San Isidro', subject: 'Neurocirurgia', start: '25/08/2025', end: '12/09/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital San Isidro', subject: 'Otorrinolaringologia', start: '15/09/2025', end: '26/09/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital San Isidro', subject: 'Oftalmologia', start: '29/09/2025', end: '10/10/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital San Isidro', subject: 'Urologia', start: '13/10/2025', end: '24/10/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital San Isidro', subject: 'Obstetrícia', start: '27/10/2025', end: '14/11/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital San Isidro', subject: 'Neurocirurgia', start: '17/11/2025', end: '19/12/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital San Isidro', subject: 'Urologia', start: '24/11/2025', end: '19/12/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital San Isidro', subject: 'Oftalmologia', start: '24/11/2025', end: '19/12/2025', details: 'Linha Inferior' },
+
+            // Hospital Sanatorio Güemes
+            { hospital: 'Hospital Sanatorio Güemes', subject: 'Neurologia', start: '21/07/2025', end: '08/08/2025', details: 'Ciclo Clínico' },
+            { hospital: 'Hospital Sanatorio Güemes', subject: 'Psiquiatria', start: '11/08/2025', end: '05/09/2025', details: 'Ciclo Clínico' },
+            { hospital: 'Hospital Sanatorio Güemes', subject: 'Neumonologia', start: '08/09/2025', end: '19/09/2025', details: 'Ciclo Clínico' },
+            { hospital: 'Hospital Sanatorio Güemes', subject: 'Dermatologia', start: '22/09/2025', end: '10/10/2025', details: 'Ciclo Clínico' },
+            { hospital: 'Hospital Sanatorio Güemes', subject: 'Diagnóstico por Imágenes', start: '10/11/2025', end: '21/11/2025', details: 'Ciclo Clínico' },
+            { hospital: 'Hospital Sanatorio Güemes', subject: 'Nutrição', start: '27/10/2025', end: '07/11/2025', details: 'Ciclo Clínico' },
+            { hospital: 'Hospital Sanatorio Güemes', subject: 'Traumatologia', start: '28/07/2025', end: '15/08/2025', details: 'Especialidades Quirúrgicas' },
+            { hospital: 'Hospital Sanatorio Güemes', subject: 'Urologia', start: '28/07/2025', end: '08/08/2025', details: 'Especialidades Quirúrgicas' },
+            { hospital: 'Hospital Sanatorio Güemes', subject: 'Otorrinolaringologia', start: '11/08/2025', end: '22/08/2025', details: 'Especialidades Quirúrgicas' },
+            { hospital: 'Hospital Sanatorio Güemes', subject: 'Oftalmologia', start: '01/09/2025', end: '12/09/2025', details: 'Especialidades Quirúrgicas' },
+            { hospital: 'Hospital Sanatorio Güemes', subject: 'Obstetrícia', start: '15/09/2025', end: '17/10/2025', details: 'Especialidades Quirúrgicas' },
+            { hospital: 'Hospital Sanatorio Güemes', subject: 'Neurocirurgia', start: '20/10/2025', end: '31/10/2025', details: 'Especialidades Quirúrgicas' },
+            { hospital: 'Hospital Sanatorio Güemes', subject: 'Ginecologia', start: '17/11/2025', end: '19/12/2025', details: 'Especialidades Quirúrgicas' },
+
+            // Hospital Santojanni
+            { hospital: 'Hospital Santojanni', subject: 'Ginecologia', start: '30/06/2025', end: '01/08/2025', details: 'Grupo A/B' }, // Ending soon
+            { hospital: 'Hospital Santojanni', subject: 'Otorrinolaringologia', start: '21/07/2025', end: '01/08/2025', details: 'Clínicas/Cirúrgicas' },
+            { hospital: 'Hospital Santojanni', subject: 'Cirurgia Geral', start: '04/08/2025', end: '10/10/2025', details: 'Clínicas/Cirúrgicas' },
+            { hospital: 'Hospital Santojanni', subject: 'Pediatria', start: '13/10/2025', end: '19/12/2025', details: 'Clínicas/Cirúrgicas' },
+
+            // Hospital Tigre
+            { hospital: 'Hospital Tigre', subject: 'Neumonologia', start: '28/07/2025', end: '11/08/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Tigre', subject: 'Neurologia', start: '21/07/2025', end: '08/08/2025', details: 'Clínicas' },
+            { hospital: 'Hospital Tigre', subject: 'Oftalmologia', start: '28/07/2025', end: '08/08/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Tigre', subject: 'Neurocirurgia', start: '11/08/2025', end: '22/08/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Tigre', subject: 'Ginecologia', start: '15/09/2025', end: '26/09/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Tigre', subject: 'Urologia', start: '29/09/2025', end: '10/10/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Tigre', subject: 'Otorrinolaringologia', start: '13/10/2025', end: '24/10/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Tigre', subject: 'Obstetrícia', start: '27/10/2025', end: '14/11/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Tigre', subject: 'Neurocirurgia', start: '17/11/2025', end: '19/12/2025', details: 'Cirúrgicas' },
+            { hospital: 'Hospital Tigre', subject: 'Ginecologia', start: '28/07/2025', end: '11/08/2025', details: 'Cirúrgicas - Linha Inferior' },
+            { hospital: 'Hospital Tigre', subject: 'Otorrinolaringologia', start: '28/07/2025', end: '08/08/2025', details: 'Cirúrgicas - Linha Inferior' },
+            { hospital: 'Hospital Tigre', subject: 'Obstetrícia', start: '11/08/2025', end: '22/08/2025', details: 'Cirúrgicas - Linha Inferior' },
+            { hospital: 'Hospital Tigre', subject: 'Neurocirurgia', start: '25/08/2025', end: '12/09/2025', details: 'Cirúrgicas - Linha Inferior' },
+            { hospital: 'Hospital Tigre', subject: 'Urologia', start: '15/09/2025', end: '26/09/2025', details: 'Cirúrgicas - Linha Inferior' },
+            { hospital: 'Hospital Tigre', subject: 'Oftalmologia', start: '29/09/2025', end: '10/10/2025', details: 'Cirúrgicas - Linha Inferior' },
+            { hospital: 'Hospital Tigre', subject: 'Otorrinolaringologia', start: '13/10/2025', end: '24/10/2025', details: 'Cirúrgicas - Linha Inferior' },
+            { hospital: 'Hospital Tigre', subject: 'Obstetrícia', start: '27/10/2025', end: '14/11/2025', details: 'Cirúrgicas - Linha Inferior' },
+            { hospital: 'Hospital Tigre', subject: 'Neurocirurgia', start: '17/11/2025', end: '19/12/2025', details: 'Cirúrgicas - Linha Inferior' },
+
+            // Hospital Tornú
+            { hospital: 'Hospital Tornú', subject: 'Neurocirurgia', start: '28/07/2025', end: '08/08/2025', details: '' },
+            { hospital: 'Hospital Tornú', subject: 'Oftalmologia', start: '28/07/2025', end: '08/08/2025', details: '' },
+            { hospital: 'Hospital Tornú', subject: 'Obstetrícia', start: '11/08/2025', end: '12/09/2025', details: '' },
+            { hospital: 'Hospital Tornú', subject: 'Ginecologia', start: '11/08/2025', end: '12/09/2025', details: '' },
+            { hospital: 'Hospital Tornú', subject: 'Urologia', start: '15/09/2025', end: '26/09/2025', details: '' },
+            { hospital: 'Hospital Tornú', subject: 'Obstetrícia', start: '15/09/2025', end: '17/10/2025', details: '' },
+            { hospital: 'Hospital Tornú', subject: 'Otorrinolaringologia', start: '29/09/2025', end: '10/10/2025', details: '' },
+            { hospital: 'Hospital Tornú', subject: 'Neurocirurgia', start: '20/10/2025', end: '31/10/2025', details: '' },
+            { hospital: 'Hospital Tornú', subject: 'Oftalmologia', start: '13/10/2025', end: '24/10/2025', details: '' },
+            { hospital: 'Hospital Tornú', subject: 'Otorrinolaringologia', start: '03/11/2025', end: '14/11/2025', details: '' },
+            { hospital: 'Hospital Tornú', subject: 'Oftalmologia', start: '27/10/2025', end: '14/11/2025', details: '' },
+            { hospital: 'Hospital Tornú', subject: 'Urologia', start: '17/11/2025', end: '28/11/2025', details: '' },
+            { hospital: 'Hospital Tornú', subject: 'Ginecologia', start: '17/11/2025', end: '19/12/2025', details: '' },
+            { hospital: 'Hospital Tornú', subject: 'Oftalmologia', start: '01/12/2025', end: '19/12/2025', details: '' },
+
+            // Hospital Vélez Sarsfield
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Oftalmologia', start: '28/07/2025', end: '15/08/2025', details: '' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Neurocirurgia', start: '18/08/2025', end: '29/08/2025', details: '' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Ginecologia', start: '01/09/2025', end: '12/09/2025', details: '' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Urologia', start: '15/09/2025', end: '26/09/2025', details: '' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Otorrinolaringologia', start: '29/09/2025', end: '10/10/2025', details: '' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Obstetrícia', start: '13/10/2025', end: '24/10/2025', details: '' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Oftalmologia', start: '27/10/2025', end: '14/11/2025', details: '' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Obstetrícia', start: '17/11/2025', end: '19/12/2025', details: '' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Ginecologia', start: '28/07/2025', end: '11/08/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Urologia', start: '28/07/2025', end: '08/08/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Obstetrícia', start: '11/08/2025', end: '22/08/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Neurocirurgia', start: '25/08/2025', end: '12/09/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Otorrinolaringologia', start: '15/09/2025', end: '26/09/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Oftalmologia', start: '29/09/2025', end: '10/10/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Urologia', start: '13/10/2025', end: '24/10/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Obstetrícia', start: '27/10/2025', end: '14/11/2025', details: 'Linha Inferior' },
+            { hospital: 'Hospital Vélez Sarsfield', subject: 'Neurocirurgia', start: '17/11/2025', end: '19/12/2025', details: 'Linha Inferior' },
+
+            // Hospital Zubizarreta
+            { hospital: 'Hospital Zubizarreta', subject: 'Urologia', start: '28/07/2025', end: '08/08/2025', details: 'Grupo 1' },
+            { hospital: 'Hospital Zubizarreta', subject: 'Neurocirurgia', start: '28/07/2025', end: '08/08/2025', details: 'Grupo 2' },
+            { hospital: 'Hospital Zubizarreta', subject: 'Ginecologia', start: '11/08/2025', end: '12/09/2025', details: '' },
+            { hospital: 'Hospital Zubizarreta', subject: 'Traumatologia', start: '15/09/2025', end: '03/10/2025', details: 'F.P.' },
+            { hospital: 'Hospital Zubizarreta', subject: 'Oftalmologia', start: '13/10/2025', end: '24/10/2025', details: '' },
+            { hospital: 'Hospital Zubizarreta', subject: 'Otorrinolaringologia', start: '03/11/2025', end: '14/11/2025', details: '' },
+            { hospital: 'Hospital Zubizarreta', subject: 'Obstetrícia', start: '17/11/2025', end: '19/12/2025', details: '' },
+        ];
+
+        // Missões a serem cumpridas (do seu plano de estudos)
+        const missions = [
+            { id: 'farmacologia-final', text: 'Preparar-se para o final de Farmacologia em 10/07.' },
+            { id: 'microbiologia-final', text: 'Preparar-se para o final de Microbiologia II em 15/07.' },
+            { id: 'medicina-interna-final', text: 'Preparar-se para o final de Medicina Interna B em 18/07.' },
+            { id: 'medicina-legal-deontologia-final', text: 'Preparar-se para o final de Medicina Legal e Deontologia Médica em 28/07.' },
+            { id: 'toxicologia-data', text: 'Descobrir a próxima data do final de Toxicologia.' },
+            { id: 'infectologia-plano', text: 'Definir um plano para o final de Infectologia.' },
+            { id: 'pediatria-inclusao', text: 'Garantir a cursada de Pediatria (04/08 a 10/10): Buscar inclusão em um dos hospitais designados.' },
+            { id: 'neumonologia-ajuste', text: 'Ajustar Neumonologia: Entrar em contato com Estefi para ser retirado de Neumonologia no carril do Wilde.' },
+            { id: 'otorrino-inclusao', text: 'Otorrinolaringologia: Buscar ativamente a inclusão para a cursada de 21/07 a 01/08 (Tarde), similar ao que Karina conseguiu.' },
+            { id: 'ginecologia-opcoes', text: 'Ginecologia: Buscar opções para cursar Ginecologia no período vespertino.' },
+            { id: 'cirurgia-prioridade', text: 'Cirurgia: Priorizar a tentativa de cursar Cirurgia no período vespertina agora, ou ter a alternativa de cursar Infectologia vespertina e deixar Cirurgia para o Verão.' },
+            { id: 'datas-regularizacao', text: 'Datas de Regularização: Me informar as datas de regularização das matérias com finais pendentes que ainda não têm data definida.' },
+            { id: 'novas-datas-hospitais', text: 'Novas Datas de Hospitais: Me enviar as próximas datas de outros hospitais para análise e otimização do cronograma.' },
+        ];
+
+        // Função para formatar datas
+        function formatDate(dateString) {
+            const [day, month, year] = dateString.split('/').map(Number);
+            return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
+        }
+
+        // Função para popular o select de matérias
+        function populateSubjectSelect() {
+            const subjectSelect = document.getElementById('subjectSelect');
+            const subjects = [...new Set(allCourses.map(course => course.subject))].sort(); // Get unique and sort
+            subjects.forEach(subject => {
+                const option = document.createElement('option');
+                option.value = subject;
+                option.textContent = subject;
+                subjectSelect.appendChild(option);
+            });
+        }
+
+        // Função para exibir os cursos da matéria selecionada
+        function displayCourses() {
+            const selectedSubject = document.getElementById('subjectSelect').value;
+            const courseResults = document.getElementById('courseResults');
+            courseResults.innerHTML = '';
+
+            if (!selectedSubject) {
+                courseResults.innerHTML = '<p class="text-gray-600">Selecione uma matéria acima para ver as opções de cursada.</p>';
+                return;
+            }
+
+            const filteredCourses = allCourses.filter(course => course.subject === selectedSubject);
+
+            if (filteredCourses.length === 0) {
+                courseResults.innerHTML = `<p class="text-gray-600">Nenhuma cursada encontrada para "${selectedSubject}" no segundo semestre.</p>`;
+                return;
+            }
+
+            filteredCourses.forEach(course => {
+                const courseDiv = document.createElement('div');
+                courseDiv.className = 'course-item';
+                courseDiv.innerHTML = `
+                    <h3 class="text-lg font-semibold text-indigo-800">${course.hospital}</h3>
+                    <p class="text-sm text-gray-700">Período: ${formatDate(course.start)} a ${formatDate(course.end)}</p>
+                    ${course.details ? `<p class="text-sm text-gray-600">Detalhes: ${course.details}</p>` : ''}
+                `;
+                courseResults.appendChild(courseDiv);
+            });
+        }
+
+        // Função para renderizar o checklist
+        function renderChecklist() {
+            const missionsList = document.getElementById('missionsList');
+            missionsList.innerHTML = '';
+
+            missions.forEach(mission => {
+                const missionDiv = document.createElement('div');
+                missionDiv.className = 'checklist-item';
+                missionDiv.setAttribute('data-mission-id', mission.id);
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `mission-${mission.id}`;
+                checkbox.checked = localStorage.getItem(mission.id) === 'true'; // Load state from local storage
+
+                const label = document.createElement('label');
+                label.htmlFor = `mission-${mission.id}`;
+                label.textContent = mission.text;
+
+                if (checkbox.checked) {
+                    missionDiv.classList.add('completed');
+                }
+
+                checkbox.addEventListener('change', (event) => {
+                    if (event.target.checked) {
+                        missionDiv.classList.add('completed');
+                        localStorage.setItem(mission.id, 'true'); // Save state to local storage
+                    } else {
+                        missionDiv.classList.remove('completed');
+                        localStorage.removeItem(mission.id); // Remove state from local storage
+                    }
+                });
+
+                missionDiv.appendChild(checkbox);
+                missionDiv.appendChild(label);
+                missionsList.appendChild(missionDiv);
+            });
+        }
+
+        // Funções para alternar entre as abas
+        function showTab(tabId) {
+            const tabs = ['coursesContent', 'checklistContent'];
+            tabs.forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(tabId).classList.remove('hidden');
+
+            const tabButtons = ['coursesTabBtn', 'checklistTabBtn'];
+            tabButtons.forEach(id => {
+                document.getElementById(id).classList.remove('active');
+            });
+            document.getElementById(`${tabId.replace('Content', 'TabBtn')}`).classList.add('active');
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            populateSubjectSelect();
+            displayCourses(); // Display initial state (empty or default message)
+            renderChecklist();
+
+            document.getElementById('subjectSelect').addEventListener('change', displayCourses);
+            document.getElementById('coursesTabBtn').addEventListener('click', () => showTab('coursesContent'));
+            document.getElementById('checklistTabBtn').addEventListener('click', () => showTab('checklistContent'));
+        });
+    </script>
+</body>
+</html>
