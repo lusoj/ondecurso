@@ -597,12 +597,20 @@
         // Renderiza a lista de cursadas (filtrada por matéria) em formato de tabela
         function renderCourseList(coursesToRender) {
             const courseListBody = document.getElementById('courseListBody');
+            if (!courseListBody) {
+                console.error("Erro: Elemento #courseListBody não encontrado!");
+                return;
+            }
+            console.log("renderCourseList chamada com", coursesToRender.length, "cursadas.");
             courseListBody.innerHTML = ''; // Limpa o conteúdo anterior da tabela
 
             if (coursesToRender.length === 0) {
-                courseListBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-600 py-4">Nenhuma cursada encontrada para esta matéria.</td></tr>';
+                console.log("Nenhuma cursada para renderizar. Exibindo mensagem padrão.");
+                courseListBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-600 py-4">Selecione uma matéria para ver as opções de cursada.</td></tr>';
                 return;
             }
+
+            const fragment = document.createDocumentFragment(); // Cria um DocumentFragment para otimização
 
             coursesToRender.forEach(course => {
                 // Cria um ID único para a cursada para fácil referência
@@ -615,6 +623,27 @@
                 // Aplica a classe 'selected' se a cursada já estiver no cronograma do usuário
                 row.className = `${isSelected ? 'selected' : ''}`; 
 
+                // Cria as células da linha explicitamente para melhor performance
+                const subjectTd = document.createElement('td');
+                subjectTd.textContent = course.subject;
+                row.appendChild(subjectTd);
+
+                const hospitalTd = document.createElement('td');
+                hospitalTd.textContent = course.hospital;
+                row.appendChild(hospitalTd);
+
+                const periodTd = document.createElement('td');
+                periodTd.textContent = `${formatDate(parseDate(course.start))} a ${formatDate(parseDate(course.end))}`;
+                row.appendChild(periodTd);
+
+                const turnoTd = document.createElement('td');
+                turnoTd.textContent = course.turno;
+                row.appendChild(turnoTd);
+
+                const detailsTd = document.createElement('td');
+                detailsTd.textContent = course.details || '-';
+                row.appendChild(detailsTd);
+
                 // Cria a célula de ação e o botão separadamente para anexar o event listener
                 const actionCell = document.createElement('td');
                 const button = document.createElement('button');
@@ -625,22 +654,15 @@
                 button.dataset.courseData = JSON.stringify(course); 
 
                 actionCell.appendChild(button);
-
-                // Preenche as células da linha com os dados da cursada
-                row.innerHTML = `
-                    <td>${course.subject}</td>
-                    <td>${course.hospital}</td>
-                    <td>${formatDate(parseDate(course.start))} a ${formatDate(parseDate(course.end))}</td>
-                    <td>${course.turno}</td>
-                    <td>${course.details || '-'}</td>
-                `;
-                // Adiciona a célula com o botão à linha
                 row.appendChild(actionCell);
 
-                courseListBody.appendChild(row);
+                fragment.appendChild(row); // Adiciona a linha ao fragmento
             });
 
+            courseListBody.appendChild(fragment); // Anexa o fragmento ao DOM de uma vez
+
             // Adiciona event listeners a todos os botões 'add-button' recém-criados
+            // Isso deve ser feito APÓS os elementos serem anexados ao DOM
             courseListBody.querySelectorAll('.add-button').forEach(button => {
                 button.addEventListener('click', (event) => {
                     const courseId = event.target.dataset.courseId;
@@ -657,6 +679,11 @@
         // Atualiza a exibição das cursadas selecionadas e verifica conflitos em formato de tabela
         function updateSelectedCoursesDisplay() {
             const selectedCoursesBody = document.getElementById('selectedCoursesBody');
+            if (!selectedCoursesBody) {
+                console.error("Erro: Elemento #selectedCoursesBody não encontrado!");
+                return;
+            }
+            console.log("updateSelectedCoursesDisplay chamada. Cursadas selecionadas:", selectedCourses.length);
             selectedCoursesBody.innerHTML = ''; // Limpa o conteúdo anterior da tabela de selecionadas
 
             if (selectedCourses.length === 0) {
@@ -717,8 +744,6 @@
                     }
                 });
             });
-            // REMOVIDO: A chamada displayCoursesBySubject() aqui para evitar re-renderização completa da tabela principal.
-            // A atualização da classe 'selected' na tabela principal será feita diretamente em toggleCourseSelection.
         }
 
         // Adiciona ou remove uma cursada da lista de selecionadas
@@ -727,10 +752,12 @@
             if (index > -1) {
                 // Se já estiver selecionada, remove
                 selectedCourses.splice(index, 1);
+                console.log(`Cursada removida: ${course.subject}`);
             } else {
                 // Se não estiver selecionada, adiciona
                 const newCourse = { ...course, id: courseId }; // Cria uma cópia e adiciona o ID
                 selectedCourses.push(newCourse);
+                console.log(`Cursada adicionada: ${course.subject}`);
             }
             // Salva a lista atualizada no localStorage para persistência
             localStorage.setItem('selectedCourses', JSON.stringify(selectedCourses));
@@ -744,6 +771,7 @@
                     const isSelectedNow = selectedCourses.some(sc => sc.id === courseId);
                     addButton.textContent = isSelectedNow ? 'Remover' : 'Selecionar';
                     mainListRow.classList.toggle('selected', isSelectedNow);
+                    console.log(`Status da linha principal atualizado para ${isSelectedNow ? 'selecionado' : 'não selecionado'}.`);
                 }
             }
         }
@@ -751,10 +779,15 @@
         // Popula o menu suspenso de seleção de matérias com todas as matérias únicas
         function populateSubjectSelect() {
             const subjectSelect = document.getElementById('subjectSelect');
+            if (!subjectSelect) {
+                console.error("Erro: Elemento #subjectSelect não encontrado!");
+                return;
+            }
             // Limpa as opções existentes antes de popular
             subjectSelect.innerHTML = '<option value="">-- Selecione uma Matéria --</option>'; 
             // Extrai matérias únicas e as ordena alfabeticamente
             const subjects = [...new Set(allCoursesData.map(course => course.subject))].sort();
+            console.log("Matérias únicas encontradas:", subjects.length);
             subjects.forEach(subject => {
                 const option = document.createElement('option');
                 option.value = subject;
@@ -765,15 +798,19 @@
 
         // Exibe as cursadas filtradas pela matéria selecionada
         function displayCoursesBySubject() {
-            const selectedSubject = document.getElementById('subjectSelect').value;
+            const subjectSelect = document.getElementById('subjectSelect');
+            if (!subjectSelect) {
+                console.error("Erro: Elemento #subjectSelect não encontrado ao tentar exibir cursadas por matéria!");
+                return;
+            }
+            const selectedSubject = subjectSelect.value;
+            console.log("displayCoursesBySubject chamada. Matéria selecionada:", selectedSubject);
             let filtered = [];
             if (selectedSubject) {
                 filtered = allCoursesData.filter(course => course.subject === selectedSubject);
-                // Log de depuração: mostra a matéria selecionada e o número de cursadas encontradas
-                console.log(`Matéria selecionada: ${selectedSubject}, Cursadas encontradas: ${filtered.length}`); 
+                console.log(`Matéria selecionada: "${selectedSubject}", Cursadas encontradas: ${filtered.length}`); 
             } else {
-                // Log de depuração: mostra quando nenhuma matéria é selecionada
-                console.log("Nenhuma matéria selecionada."); 
+                console.log("Nenhuma matéria selecionada. Exibindo mensagem padrão."); 
             }
             renderCourseList(filtered);
         }
@@ -781,11 +818,20 @@
         // --- Event Listeners ---
         // Executa quando o DOM estiver completamente carregado
         document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM completamente carregado.");
             populateSubjectSelect(); // Preenche o seletor de matérias
             updateSelectedCoursesDisplay(); // Carrega e exibe as cursadas selecionadas ao carregar a página
 
             // Event listener para a mudança no seletor de matéria
-            document.getElementById('subjectSelect').addEventListener('change', displayCoursesBySubject);
+            const subjectSelect = document.getElementById('subjectSelect');
+            if (subjectSelect) {
+                subjectSelect.addEventListener('change', (event) => {
+                    console.log("Evento 'change' no seletor de matéria disparado. Novo valor:", event.target.value);
+                    displayCoursesBySubject();
+                });
+            } else {
+                console.error("Erro: Elemento #subjectSelect não encontrado para anexar o event listener.");
+            }
         });
     </script>
 </body>
