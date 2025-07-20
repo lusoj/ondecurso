@@ -604,7 +604,6 @@
                 return;
             }
 
-            // Para cada cursada a ser renderizada, cria uma linha na tabela
             coursesToRender.forEach(course => {
                 // Cria um ID único para a cursada para fácil referência
                 const courseId = `${course.subject}-${course.hospital}-${course.start}-${course.end}-${course.turno}`.replace(/[^a-zA-Z0-9-]/g, '');
@@ -616,6 +615,17 @@
                 // Aplica a classe 'selected' se a cursada já estiver no cronograma do usuário
                 row.className = `${isSelected ? 'selected' : ''}`; 
 
+                // Cria a célula de ação e o botão separadamente para anexar o event listener
+                const actionCell = document.createElement('td');
+                const button = document.createElement('button');
+                button.className = 'add-button';
+                button.textContent = isSelected ? 'Remover' : 'Selecionar';
+                // Armazena o ID e os dados completos da cursada nos atributos data-*
+                button.dataset.courseId = courseId; 
+                button.dataset.courseData = JSON.stringify(course); 
+
+                actionCell.appendChild(button);
+
                 // Preenche as células da linha com os dados da cursada
                 row.innerHTML = `
                     <td>${course.subject}</td>
@@ -623,13 +633,21 @@
                     <td>${formatDate(parseDate(course.start))} a ${formatDate(parseDate(course.end))}</td>
                     <td>${course.turno}</td>
                     <td>${course.details || '-'}</td>
-                    <td>
-                        <button class="add-button" onclick="toggleCourseSelection(${JSON.stringify(course).replace(/"/g, '&quot;')}, '${courseId}')">
-                            ${isSelected ? 'Remover' : 'Selecionar'}
-                        </button>
-                    </td>
                 `;
+                // Adiciona a célula com o botão à linha
+                row.appendChild(actionCell);
+
                 courseListBody.appendChild(row);
+            });
+
+            // Adiciona event listeners a todos os botões 'add-button' recém-criados
+            courseListBody.querySelectorAll('.add-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const courseId = event.target.dataset.courseId;
+                    // Analisa os dados da cursada de volta para um objeto JavaScript
+                    const courseData = JSON.parse(event.target.dataset.courseData); 
+                    toggleCourseSelection(courseData, courseId);
+                });
             });
 
             // Após renderizar a lista principal, atualiza a exibição das cursadas selecionadas
@@ -726,6 +744,8 @@
         // Popula o menu suspenso de seleção de matérias com todas as matérias únicas
         function populateSubjectSelect() {
             const subjectSelect = document.getElementById('subjectSelect');
+            // Limpa as opções existentes antes de popular
+            subjectSelect.innerHTML = '<option value="">-- Selecione uma Matéria --</option>'; 
             // Extrai matérias únicas e as ordena alfabeticamente
             const subjects = [...new Set(allCoursesData.map(course => course.subject))].sort();
             subjects.forEach(subject => {
