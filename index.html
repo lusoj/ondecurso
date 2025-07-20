@@ -717,12 +717,8 @@
                     }
                 });
             });
-
-            // Re-renderiza a lista principal de cursadas disponíveis para atualizar as cores
-            const selectedSubject = document.getElementById('subjectSelect').value;
-            if (selectedSubject) { // Só renderiza se uma matéria estiver selecionada
-                displayCoursesBySubject();
-            }
+            // REMOVIDO: A chamada displayCoursesBySubject() aqui para evitar re-renderização completa da tabela principal.
+            // A atualização da classe 'selected' na tabela principal será feita diretamente em toggleCourseSelection.
         }
 
         // Adiciona ou remove uma cursada da lista de selecionadas
@@ -739,6 +735,17 @@
             // Salva a lista atualizada no localStorage para persistência
             localStorage.setItem('selectedCourses', JSON.stringify(selectedCourses));
             updateSelectedCoursesDisplay(); // Atualiza a exibição e verifica conflitos novamente
+
+            // OTIMIZAÇÃO: Atualiza diretamente o status da linha na tabela principal
+            const mainListRow = document.getElementById(courseId);
+            if (mainListRow) {
+                const addButton = mainListRow.querySelector('.add-button');
+                if (addButton) {
+                    const isSelectedNow = selectedCourses.some(sc => sc.id === courseId);
+                    addButton.textContent = isSelectedNow ? 'Remover' : 'Selecionar';
+                    mainListRow.classList.toggle('selected', isSelectedNow);
+                }
+            }
         }
 
         // Popula o menu suspenso de seleção de matérias com todas as matérias únicas
