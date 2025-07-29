@@ -46,6 +46,9 @@
         .add-button {
             @apply bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-1.5 px-3 rounded-lg shadow-md transition-colors duration-200 text-sm;
         }
+        .add-button:disabled {
+            @apply bg-gray-300 cursor-not-allowed;
+        }
         .remove-button {
             @apply bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-2 rounded-lg shadow-sm transition-colors duration-200 text-xs;
         }
@@ -56,6 +59,14 @@
         /* Estilo para a mensagem de conflito */
         .conflict-message {
             @apply text-red-700 font-semibold text-xs mt-1;
+        }
+        /* Estilo para o botão de otimização */
+        .optimize-button {
+            @apply bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-colors duration-200 text-base mt-4;
+        }
+        /* Estilo para o seletor de preferência */
+        .preference-select {
+            @apply block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500;
         }
     </style>
 </head>
@@ -71,6 +82,16 @@
             <!-- Seção principal de cursadas disponíveis -->
             <section id="coursesContent" class="card">
                 <h2 class="text-2xl font-semibold text-indigo-700 mb-4">Cursadas Disponíveis</h2>
+
+                <!-- Botão para Gerar Cronograma Otimizado -->
+                <div class="text-center mb-6">
+                    <button id="optimizeScheduleButton" class="optimize-button">
+                        Gerar Cronograma Otimizado
+                    </button>
+                    <div id="optimizationStatus" class="mt-4 p-3 rounded-lg text-center text-sm font-semibold">
+                        <!-- Mensagens de status da otimização serão exibidas aqui -->
+                    </div>
+                </div>
 
                 <!-- Filtro por Matéria -->
                 <div id="filterBySubject" class="mb-6">
@@ -91,12 +112,13 @@
                                 <th>Período</th>
                                 <th>Turno</th>
                                 <th>Detalhes</th>
+                                <th>Preferência</th> <!-- Nova coluna para preferência -->
                                 <th>Ação</th>
                             </tr>
                         </thead>
                         <tbody id="courseListBody">
                             <!-- O conteúdo da tabela será preenchido via JavaScript -->
-                            <tr><td colspan="6" class="text-center text-gray-600 py-4">Selecione uma matéria para ver as opções de cursada.</td></tr>
+                            <tr><td colspan="7" class="text-center text-gray-600 py-4">Selecione uma matéria para ver as opções de cursada.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -110,15 +132,16 @@
                                 <tr>
                                     <th>Matéria</th>
                                     <th>Hospital</th>
-                                    <th>Período</th>
+                                <th>Período</th>
                                     <th>Turno</th>
+                                    <th>Preferência</th> <!-- Preferência também na tabela de selecionadas -->
                                     <th>Conflitos</th>
                                     <th>Ação</th>
                                 </tr>
                             </thead>
                             <tbody id="selectedCoursesBody">
                                 <!-- O conteúdo da tabela de selecionadas será preenchido via JavaScript -->
-                                <tr><td colspan="6" class="text-center text-gray-600 py-4">Nenhuma cursada selecionada ainda.</td></tr>
+                                <tr><td colspan="7" class="text-center text-gray-600 py-4">Nenhuma cursada selecionada ainda.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -138,8 +161,8 @@
         // incluindo matérias, hospitais, datas de início/fim e turno.
         // Os nomes das matérias foram padronizados para evitar duplicatas e variações.
         // Turnos: 'Manhã' é o padrão se não especificado, 'Tarde' para vespertinas.
+        // As cursadas antes de 01/08/2025 foram removidas.
         const allCoursesData = [
-            { subject: 'Otorrinolaringologia', hospital: 'Clínicas', start: '21/07/2025', end: '01/08/2025', turno: 'Manhã', details: 'CONSEGUIDA.' },
             { subject: 'Pediatria', hospital: 'Posadas', start: '04/08/2025', end: '10/10/2025', turno: 'Manhã', details: 'A conseguir inclusão.' },
             { subject: 'Cirurgia Geral', hospital: 'Morón', start: '04/08/2025', end: '10/10/2025', turno: 'Vespertina', details: 'A conseguir inclusão.' },
             { subject: 'Urologia', hospital: 'Carril A Español', start: '20/10/2025', end: '31/10/2025', turno: 'Manhã', details: 'Parte do Carril A.' },
@@ -148,9 +171,7 @@
             { subject: 'Ginecologia', hospital: 'Tornú ou Oñativia', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'A conseguir inclusão.' },
             { subject: 'Obstetrícia', hospital: 'Ramos Mejía', start: '17/11/2025', end: '19/12/2025', turno: 'Tarde', details: '' },
             { subject: 'Medicina B', hospital: 'Hospital Alemão', start: '11/08/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
-            { subject: 'Neumonologia', hospital: 'Hospital Alemão', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Ginecologia', hospital: 'Hospital Alemão', start: '11/08/2025', end: '12/09/2025', turno: 'Manhã', details: '' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Alemão', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Alemão', start: '03/11/2025', end: '14/11/2025', turno: 'Manhã', details: '' },
             { subject: 'Urologia', hospital: 'Hospital Alemão', start: '17/11/2025', end: '28/11/2025', turno: 'Manhã', details: '' },
             { subject: 'Medicina B', hospital: 'Hospital Argerich', start: '11/08/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
@@ -158,15 +179,12 @@
             { subject: 'Urologia', hospital: 'Hospital Argerich', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: '' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Argerich', start: '29/09/2025', end: '10/10/2025', turno: 'Manhã', details: '' },
             { subject: 'Cirurgia Geral', hospital: 'Hospital Argerich', start: '13/10/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
-            { subject: 'Traumatologia', hospital: 'Hospital Bocalandro', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Carril Superior' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Bocalandro', start: '18/08/2025', end: '29/08/2025', turno: 'Manhã', details: 'Carril Superior' },
             { subject: 'Oftalmologia', hospital: 'Hospital Bocalandro', start: '01/09/2025', end: '12/09/2025', turno: 'Manhã', details: 'Carril Superior' },
             { subject: 'Ginecologia', hospital: 'Hospital Bocalandro', start: '15/09/2025', end: '17/10/2025', turno: 'Manhã', details: 'Carril Superior' },
             { subject: 'Urologia', hospital: 'Hospital Bocalandro', start: '20/10/2025', end: '31/10/2025', turno: 'Manhã', details: 'Carril Superior' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Bocalandro', start: '03/11/2025', end: '14/11/2025', turno: 'Manhã', details: 'Carril Superior' },
             { subject: 'Obstetrícia', hospital: 'Hospital Bocalandro', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Carril Superior' },
-            { subject: 'Otorrinolaringologia', hospital: 'Hospital Bocalandro', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Carril do Meio' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Bocalandro', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Carril do Meio' },
             { subject: 'Ginecologia', hospital: 'Hospital Bocalandro', start: '11/08/2025', end: '12/09/2025', turno: 'Manhã', details: 'Carril do Meio' },
             { subject: 'Obstetrícia', hospital: 'Hospital Bocalandro', start: '15/09/2025', end: '17/10/2025', turno: 'Manhã', details: 'Carril do Meio' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Bocalandro', start: '20/10/2025', end: '31/10/2025', turno: 'Manhã', details: 'Carril do Meio' },
@@ -175,10 +193,8 @@
             { subject: 'Oftalmologia', hospital: 'Hospital Bocalandro', start: '01/12/2025', end: '19/12/2025', turno: 'Manhã', details: 'Carril do Meio' },
             { subject: 'Cirurgia Geral', hospital: 'Hospital Bocalandro', start: '04/08/2025', end: '10/10/2025', turno: 'Manhã', details: 'Carril Inferior' },
             { subject: 'Pediatria', hospital: 'Hospital Bocalandro', start: '13/10/2025', end: '19/12/2025', turno: 'Manhã', details: 'Carril Inferior' },
-            { subject: 'Neumonologia', hospital: 'Hospital Bocalandro', start: '28/07/2025', end: '11/08/2025', turno: 'Manhã', details: 'Clínicas' },
             { subject: 'Neumonologia', hospital: 'Hospital Bocalandro', start: '08/09/2025', end: '22/09/2025', turno: 'Manhã', details: 'Clínicas' },
             { subject: 'Infectologia', hospital: 'Hospital Bocalandro', start: '13/10/2025', end: '27/10/2025', turno: 'Manhã', details: 'Clínicas' },
-            { subject: 'Traumatologia', hospital: 'Hospital Britânico', start: '28/07/2025', end: '15/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Britânico', start: '18/08/2025', end: '29/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Oftalmologia', hospital: 'Hospital Britânico', start: '01/09/2025', end: '12/09/2025', turno: 'Manhã', details: '' },
             { subject: 'Urologia', hospital: 'Hospital Britânico', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: '' },
@@ -186,9 +202,7 @@
             { subject: 'Cirurgia Geral', hospital: 'Hospital Britânico', start: '13/10/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
             { subject: 'Cirurgia Geral', hospital: 'Hospital Campos de Mayo', start: '04/08/2025', end: '10/10/2025', turno: 'Manhã', details: '' },
             { subject: 'Pediatria', hospital: 'Hospital Campos de Mayo', start: '13/10/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
-            { subject: 'Radiologia', hospital: 'Hospital Campos de Mayo', start: '21/07/2025', end: '01/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Medicina B', hospital: 'Hospital Churruca', start: '11/08/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Churruca', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Ginecologia', hospital: 'Hospital Churruca', start: '11/08/2025', end: '12/09/2025', turno: 'Manhã', details: '' },
             { subject: 'Obstetrícia', hospital: 'Hospital Churruca', start: '15/09/2025', end: '17/10/2025', turno: 'Manhã', details: '' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Churruca', start: '20/10/2025', end: '31/10/2025', turno: 'Manhã', details: '' },
@@ -205,26 +219,13 @@
             { subject: 'Medicina B', hospital: 'Hospital de Clínicas', start: '11/08/2025', end: '19/12/2025', turno: 'Manhã', details: '5º Ano Clínicas - Cátedra I, Carril 1' },
             { subject: 'Cirurgia Geral', hospital: 'Hospital de Clínicas', start: '04/08/2025', end: '10/10/2025', turno: 'Manhã', details: '6º Ano Cirúrgicas - Carril 7' },
             { subject: 'Pediatria', hospital: 'Hospital de Clínicas', start: '04/08/2025', end: '10/10/2025', turno: 'Manhã', details: '6º Ano Cirúrgicas - Carril 8' },
-            { subject: 'Urologia', hospital: 'Hospital de Clínicas', start: '28/07/2025', end: '15/08/2025', turno: 'Manhã', details: '6º Ano Cirúrgicas - Carril 1' },
             { subject: 'Oftalmologia', hospital: 'Hospital de Clínicas', start: '01/09/2025', end: '12/09/2025', turno: 'Manhã', details: '6º Ano Cirúrgicas - Carril 1' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital de Clínicas', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: '6º Ano Cirúrgicas - Carril 1' },
             { subject: 'Ginecologia', hospital: 'Hospital de Clínicas', start: '29/09/2025', end: '10/10/2025', turno: 'Manhã', details: '6º Ano Cirúrgicas - Carril 1' },
             { subject: 'Obstetrícia', hospital: 'Hospital de Clínicas', start: '13/10/2025', end: '19/12/2025', turno: 'Manhã', details: '6º Ano Cirúrgicas - Carril 1' },
             { subject: 'Neurocirurgia', hospital: 'Hospital de Clínicas', start: '17/11/2025', end: '28/11/2025', turno: 'Manhã', details: '6º Ano Cirúrgicas - Carril 1' },
-            { subject: 'Obstetrícia', hospital: 'Hospital Durand', start: '30/06/2025', end: '01/08/2025', turno: 'Manhã', details: 'Carril A/B' },
-            { subject: 'Otorrinolaringologia', hospital: 'Hospital Durand', start: '21/07/2025', end: '01/08/2025', turno: 'Manhã', details: 'Carril A/B' },
-            { subject: 'Traumatologia', hospital: 'Hospital Durand', start: '30/06/2025', end: '18/07/2025', turno: 'Manhã', details: 'Carril A/B' },
-            { subject: 'Neumonologia', hospital: 'Hospital Durand', start: '28/07/2025', end: '11/08/2025', turno: 'Manhã', details: 'Clínicas' },
-            { subject: 'Radiologia', hospital: 'Hospital Durand', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Clínicas' },
             { subject: 'Infectologia', hospital: 'Hospital Durand', start: '11/08/2025', end: '05/09/2025', turno: 'Manhã', details: 'Clínicas' },
-            { subject: 'Neumonologia', hospital: 'Hospital Durand', start: '05/05/2025', end: '19/05/2025', turno: 'Manhã', details: 'Clínicas' },
-            { subject: 'Neumonologia', hospital: 'Hospital Durand', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Clínicas' },
             { subject: 'Neumonologia', hospital: 'Hospital Durand', start: '27/10/2025', end: '10/11/2025', turno: 'Manhã', details: 'Clínicas' },
-            { subject: 'Pediatria', hospital: 'Hospital Evita de Lanús', start: '19/05/2025', end: '28/07/2025', turno: 'Manhã', details: 'Alunos 2023' },
-            { subject: 'Urologia', hospital: 'Hospital Evita de Lanús', start: '28/07/2025', end: '18/08/2025', turno: 'Manhã', details: 'Alunos 2023' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Evita de Lanús', start: '28/07/2025', end: '18/08/2025', turno: 'Manhã', details: 'Alunos 2023' },
-            { subject: 'Cirurgia Geral', hospital: 'Hospital Evita de Lanús', start: '19/05/2025', end: '25/07/2025', turno: 'Manhã', details: 'Alunos 2023' },
-            { subject: 'Otorrinolaringologia', hospital: 'Hospital Evita de Lanús', start: '25/07/2025', end: '25/08/2025', turno: 'Manhã', details: 'Alunos 2023' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Evita de Lanús', start: '11/08/2025', end: '27/08/2025', turno: 'Manhã', details: 'Alunos 2024' },
             { subject: 'Oftalmologia', hospital: 'Hospital Evita de Lanús', start: '11/08/2025', end: '27/08/2025', turno: 'Manhã', details: 'Alunos 2024' },
             { subject: 'Ginecologia', hospital: 'Hospital Evita de Lanús', start: '15/09/2025', end: '29/09/2025', turno: 'Manhã', details: 'Alunos 2024' },
@@ -232,7 +233,6 @@
             { subject: 'Oftalmologia', hospital: 'Hospital Evita de Lanús', start: '20/10/2025', end: '03/11/2025', turno: 'Manhã', details: 'Alunos 2024' },
             { subject: 'Obstetrícia', hospital: 'Hospital Evita de Lanús', start: '04/11/2025', end: '17/11/2025', turno: 'Manhã', details: 'Alunos 2024' },
             { subject: 'Pediatria', hospital: 'Hospital Evita de Lanús', start: '10/10/2025', end: '19/12/2025', turno: 'Manhã', details: 'Alunos 2024' },
-            { subject: 'Neumonologia', hospital: 'Hospital Fernández', start: '21/07/2025', end: '01/08/2025', turno: 'Manhã', details: '2º Ano - Comisión A' },
             { subject: 'Psiquiatria', hospital: 'Hospital Fernández', start: '11/08/2025', end: '05/09/2025', turno: 'Manhã', details: '2º Ano - Comisión A' },
             { subject: 'Neurologia', hospital: 'Hospital Fernández', start: '08/09/2025', end: '26/09/2025', turno: 'Manhã', details: '2º Ano - Comisión A' },
             { subject: 'Diagnóstico por Imágenes', hospital: 'Hospital Fernández', start: '29/09/2025', end: '10/10/2025', turno: 'Manhã', details: '2º Ano - Comisión A' },
@@ -244,7 +244,6 @@
             { subject: 'Neumonologia', hospital: 'Hospital Fernández', start: '24/11/2025', end: '12/12/2025', turno: 'Manhã', details: '2º Ano - Comisión B' },
             { subject: 'Infectologia', hospital: 'Hospital Fernández', start: '13/10/2025', end: '07/11/2025', turno: 'Manhã', details: 'Comum a ambas comissões' },
             { subject: 'Toxicologia', hospital: 'Hospital Fernández', start: '12/08/2025', end: '06/11/2025', turno: 'Vespertina', details: 'Comum a ambas comissões' },
-            { subject: 'Urologia', hospital: 'Hospital Fernández', start: '21/07/2025', end: '01/08/2025', turno: 'Manhã', details: '3º Ano - Comisión A' },
             { subject: 'Pediatria', hospital: 'Hospital Fernández', start: '04/08/2025', end: '10/10/2025', turno: 'Manhã', details: '3º Ano - Comisión A' },
             { subject: 'Ginecologia', hospital: 'Hospital Fernández', start: '13/10/2025', end: '14/11/2025', turno: 'Manhã', details: '3º Ano - Comisión A' },
             { subject: 'Obstetrícia', hospital: 'Hospital Fernández', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: '3º Ano - Comisión A' },
@@ -252,68 +251,54 @@
             { subject: 'Obstetrícia', hospital: 'Hospital Fernández', start: '08/10/2025', end: '07/11/2025', turno: 'Manhã', details: '3º Ano - Comisión B' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Fernández', start: '24/11/2025', end: '05/12/2025', turno: 'Manhã', details: '3º Ano - Comisión B' },
             { subject: 'Urologia', hospital: 'Hospital Fernández', start: '08/12/2025', end: '19/12/2025', turno: 'Manhã', details: '3º Ano - Comisión B' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Fiorito', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Linha 1' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Fiorito', start: '11/08/2025', end: '22/08/2025', turno: 'Manhã', details: 'Linha 1' },
             { subject: 'Traumatologia', hospital: 'Hospital Fiorito', start: '25/08/2025', end: '12/09/2025', turno: 'Manhã', details: 'Linha 1' },
             { subject: 'Ginecologia', hospital: 'Hospital Fiorito', start: '15/09/2025', end: '17/10/2025', turno: 'Manhã', details: 'Linha 1' },
             { subject: 'Urologia', hospital: 'Hospital Fiorito', start: '20/10/2025', end: '31/10/2025', turno: 'Manhã', details: 'Linha 1' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Fiorito', start: '03/11/2025', end: '14/11/2025', turno: 'Manhã', details: 'Linha 1' },
             { subject: 'Obstetrícia', hospital: 'Hospital Fiorito', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha 1' },
-            { subject: 'Urologia', hospital: 'Hospital Fiorito', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Linha 2' },
             { subject: 'Ginecologia', hospital: 'Hospital Fiorito', start: '11/08/2025', end: '22/08/2025', turno: 'Manhã', details: 'Linha 2' },
             { subject: 'Obstetrícia', hospital: 'Hospital Fiorito', start: '25/08/2025', end: '12/09/2025', turno: 'Manhã', details: 'Linha 2' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Fiorito', start: '15/09/2025', end: '10/10/2025', turno: 'Manhã', details: 'Linha 2' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Fiorito', start: '13/10/2025', end: '24/10/2025', turno: 'Manhã', details: 'Linha 2' },
             { subject: 'Oftalmologia', hospital: 'Hospital Fiorito', start: '27/10/2025', end: '14/11/2025', turno: 'Manhã', details: 'Linha 2' },
             { subject: 'Traumatologia', hospital: 'Hospital Fiorito', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha 2' },
-            { subject: 'Obstetrícia', hospital: 'Hospital Fiorito', start: '30/06/2025', end: '18/07/2025', turno: 'Manhã', details: 'Linha 3' },
-            { subject: 'Pediatria', hospital: 'Hospital Fiorito', start: '21/07/2025', end: '10/10/2025', turno: 'Manhã', details: 'Linha 3' },
             { subject: 'Cirurgia Geral', hospital: 'Hospital Fiorito', start: '13/10/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha 3' },
-            { subject: 'Ginecologia', hospital: 'Hospital Fiorito', start: '28/07/2025', end: '15/09/2025', turno: 'Manhã', details: 'Linha 4' },
             { subject: 'Neumonologia', hospital: 'Hospital Fiorito', start: '24/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha 4' },
-            { subject: 'Nutrição', hospital: 'Hospital Italiano', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Psiquiatria', hospital: 'Hospital Italiano', start: '11/08/2025', end: '05/09/2025', turno: 'Manhã', details: '' },
             { subject: 'Infectologia', hospital: 'Hospital Italiano', start: '08/09/2025', end: '03/10/2025', turno: 'Manhã', details: '' },
             { subject: 'Neumonologia', hospital: 'Hospital Italiano', start: '06/10/2025', end: '17/10/2025', turno: 'Manhã', details: '' },
             { subject: 'Dermatologia', hospital: 'Hospital Italiano', start: '20/10/2025', end: '07/11/2025', turno: 'Manhã', details: '' },
             { subject: 'Radiologia', hospital: 'Hospital Italiano', start: '10/11/2025', end: '21/11/2025', turno: 'Manhã', details: '' },
             { subject: 'Neurologia', hospital: 'Hospital Italiano', start: '24/11/2025', end: '12/12/2025', turno: 'Manhã', details: '' },
-            { subject: 'Obstetrícia', hospital: 'Hospital Italiano', start: '30/06/2025', end: '01/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Pediatria', hospital: 'Hospital Italiano', start: '04/08/2025', end: '10/10/2025', turno: 'Manhã', details: '' },
             { subject: 'Cirurgia Geral', hospital: 'Hospital Italiano', start: '13/10/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
-            { subject: 'Neumonologia', hospital: 'Hospital Lanari', start: '28/07/2025', end: '11/08/2025', turno: 'Manhã', details: '' },
-            { subject: 'Neurologia', hospital: 'Hospital Lanari', start: '21/07/2025', end: '08/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Dermatologia', hospital: 'Hospital Lanari', start: '18/08/2025', end: '05/09/2025', turno: 'Manhã', details: '' },
             { subject: 'Neumonologia', hospital: 'Hospital Lanari', start: '08/09/2025', end: '19/09/2025', turno: 'Manhã', details: '' },
             { subject: 'Radiologia', hospital: 'Hospital Lanari', start: '22/09/2025', end: '03/10/2025', turno: 'Manhã', details: '' },
             { subject: 'Infectologia', hospital: 'Hospital Lanari', start: '13/10/2025', end: '27/10/2025', turno: 'Manhã', details: '' },
             { subject: 'Psiquiatria', hospital: 'Hospital Lanari', start: '27/10/2025', end: '10/11/2025', turno: 'Manhã', details: '' },
             { subject: 'Nutrição', hospital: 'Hospital Lanari', start: '10/11/2025', end: '24/11/2025', turno: 'Manhã', details: '' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Larcade', start: '28/07/2025', end: '15/08/2025', turno: 'Manhã', details: '6º Ano Grupo A' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Larcade', start: '18/08/2025', end: '29/08/2025', turno: 'Manhã', details: '6º Ano Grupo A' },
             { subject: 'Oftalmologia', hospital: 'Hospital Larcade', start: '01/09/2025', end: '12/09/2025', turno: 'Manhã', details: '6º Ano Grupo A' },
             { subject: 'Ginecologia', hospital: 'Hospital Larcade', start: '15/09/2025', end: '17/10/2025', turno: 'Manhã', details: '6º Ano Grupo A' },
             { subject: 'Urologia', hospital: 'Hospital Larcade', start: '20/10/2025', end: '31/10/2025', turno: 'Manhã', details: '6º Ano Grupo A' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Larcade', start: '03/11/2025', end: '14/11/2025', turno: 'Manhã', details: '6º Ano Grupo A' },
             { subject: 'Obstetrícia', hospital: 'Hospital Larcade', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: '6º Ano Grupo A' },
-            { subject: 'Obstetrícia', hospital: 'Hospital Larcade', start: '30/06/2025', end: '01/08/2025', turno: 'Manhã', details: '6º Ano Grupo B' },
             { subject: 'Pediatria', hospital: 'Hospital Larcade', start: '04/08/2025', end: '10/10/2025', turno: 'Manhã', details: '6º Ano Grupo B' },
             { subject: 'Cirurgia Geral', hospital: 'Hospital Larcade', start: '13/10/2025', end: '19/12/2025', turno: 'Manhã', details: '6º Ano Grupo B' },
-            { subject: 'Neurologia', hospital: 'Hospital Larcade', start: '21/07/2025', end: '08/08/2025', turno: 'Manhã', details: '5º Ano Grupo A' },
             { subject: 'Dermatologia', hospital: 'Hospital Larcade', start: '18/08/2025', end: '05/09/2025', turno: 'Manhã', details: '5º Ano Grupo A' },
             { subject: 'Neumonologia', hospital: 'Hospital Larcade', start: '08/09/2025', end: '19/09/2025', turno: 'Manhã', details: '5º Ano Grupo A' },
             { subject: 'Radiologia', hospital: 'Hospital Larcade', start: '22/09/2025', end: '03/10/2025', turno: 'Manhã', details: '5º Ano Grupo A' },
             { subject: 'Infectologia', hospital: 'Hospital Larcade', start: '13/10/2025', end: '07/11/2025', turno: 'Manhã', details: '5º Ano Grupo A' },
             { subject: 'Psiquiatria', hospital: 'Hospital Larcade', start: '10/11/2025', end: '21/11/2025', turno: 'Manhã', details: '5º Ano Grupo A' },
             { subject: 'Nutrição', hospital: 'Hospital Larcade', start: '08/12/2025', end: '19/12/2025', turno: 'Manhã', details: '5º Ano Grupo A' },
-            { subject: 'Dermatologia', hospital: 'Hospital Larcade', start: '21/07/2025', end: '08/08/2025', turno: 'Manhã', details: '5º Ano Grupo B' },
             { subject: 'Neurologia', hospital: 'Hospital Larcade', start: '18/08/2025', end: '05/09/2025', turno: 'Manhã', details: '5º Ano Grupo B' },
             { subject: 'Psiquiatria', hospital: 'Hospital Larcade', start: '08/09/2025', end: '03/10/2025', turno: 'Manhã', details: '5º Ano Grupo B' },
             { subject: 'Radiologia', hospital: 'Hospital Larcade', start: '13/10/2025', end: '24/10/2025', turno: 'Manhã', details: '5º Ano Grupo B' },
             { subject: 'Nutrição', hospital: 'Hospital Larcade', start: '27/10/2025', end: '07/11/2025', turno: 'Manhã', details: '5º Ano Grupo B' },
             { subject: 'Infectologia', hospital: 'Hospital Larcade', start: '10/11/2025', end: '05/12/2025', turno: 'Manhã', details: '5º Ano Grupo B' },
             { subject: 'Neumonologia', hospital: 'Hospital Larcade', start: '08/12/2025', end: '19/12/2025', turno: 'Manhã', details: '5º Ano Grupo B' },
-            { subject: 'Neurocirurgia', hospital: 'Hospital Malvinas', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Psiquiatria', hospital: 'Hospital Malvinas', start: '11/08/2025', end: '05/09/2025', turno: 'Manhã', details: '' },
             { subject: 'Urologia', hospital: 'Hospital Malvinas', start: '08/09/2025', end: '26/09/2025', turno: 'Manhã', details: '' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Malvinas', start: '29/09/2025', end: '10/10/2025', turno: 'Manhã', details: '' },
@@ -327,9 +312,6 @@
             { subject: 'Neurologia', hospital: 'Hospital Milstein', start: '20/10/2025', end: '07/11/2025', turno: 'Manhã', details: '' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Milstein', start: '10/11/2025', end: '21/11/2025', turno: 'Manhã', details: '' },
             { subject: 'Infectologia', hospital: 'Hospital Milstein', start: '24/11/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
-            { subject: 'Neumonologia', hospital: 'Hospital Moreno', start: '28/07/2025', end: '11/08/2025', turno: 'Manhã', details: 'Clínicas' },
-            { subject: 'Urologia', hospital: 'Hospital Moreno', start: '28/07/2025', end: '15/08/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Superior' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Moreno', start: '28/07/2025', end: '15/08/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Superior' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Moreno', start: '18/08/2025', end: '29/08/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Superior' },
             { subject: 'Ginecologia', hospital: 'Hospital Moreno', start: '01/09/2025', end: '12/09/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Superior' },
             { subject: 'Obstetrícia', hospital: 'Hospital Moreno', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Superior' },
@@ -338,7 +320,6 @@
             { subject: 'Neurocirurgia', hospital: 'Hospital Moreno', start: '27/10/2025', end: '07/11/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Superior' },
             { subject: 'Oftalmologia', hospital: 'Hospital Moreno', start: '10/11/2025', end: '21/11/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Superior' },
             { subject: 'Obstetrícia', hospital: 'Hospital Moreno', start: '24/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Superior' },
-            { subject: 'Ginecologia', hospital: 'Hospital Moreno', start: '28/07/2025', end: '15/08/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha do Meio' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Moreno', start: '18/08/2025', end: '29/08/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha do Meio' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Moreno', start: '01/09/2025', end: '12/09/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha do Meio' },
             { subject: 'Oftalmologia', hospital: 'Hospital Moreno', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha do Meio' },
@@ -347,90 +328,64 @@
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Moreno', start: '27/10/2025', end: '07/11/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha do Meio' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Moreno', start: '10/11/2025', end: '21/11/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha do Meio' },
             { subject: 'Oftalmologia', hospital: 'Hospital Moreno', start: '24/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha do Meio' },
-            { subject: 'Neumonologia', hospital: 'Hospital Muniz', start: '28/07/2025', end: '11/08/2025', turno: 'Manhã', details: 'Clínicas' },
-            { subject: 'Obstetrícia', hospital: 'Hospital Muniz', start: '25/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Cirúrgicas' },
-            { subject: 'Neurocirurgia', hospital: 'Hospital Muniz', start: '28/07/2025', end: '11/08/2025', turno: 'Manhã', details: 'Cirúrgicas' },
             { subject: 'Ginecologia', hospital: 'Hospital Muniz', start: '08/08/2025', end: '29/08/2025', turno: 'Manhã', details: 'Cirúrgicas' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Muniz', start: '28/07/2025', end: '11/08/2025', turno: 'Manhã', details: 'Cirúrgicas' },
-            { subject: 'Diagnóstico por Imágenes', hospital: 'Hospital Naval', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Infectologia', hospital: 'Hospital Naval', start: '11/08/2025', end: '05/09/2025', turno: 'Manhã', details: '' },
             { subject: 'Nutrição', hospital: 'Hospital Naval', start: '08/09/2025', end: '19/09/2025', turno: 'Manhã', details: '' },
             { subject: 'Neurologia', hospital: 'Hospital Naval', start: '22/09/2025', end: '10/10/2025', turno: 'Manhã', details: '' },
             { subject: 'Psiquiatria', hospital: 'Hospital Naval', start: '13/10/2025', end: '07/11/2025', turno: 'Manhã', details: '' },
             { subject: 'Neumonologia', hospital: 'Hospital Naval', start: '10/11/2025', end: '21/11/2025', turno: 'Manhã', details: '' },
             { subject: 'Dermatologia', hospital: 'Hospital Naval', start: '24/11/2025', end: '12/12/2025', turno: 'Manhã', details: '' },
-            { subject: 'Obstetrícia', hospital: 'Hospital Naval', start: '30/06/2025', end: '01/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Pediatria', hospital: 'Hospital Naval', start: '04/08/2025', end: '10/10/2025', turno: 'Manhã', details: '' },
             { subject: 'Cirurgia Geral', hospital: 'Hospital Naval', start: '13/10/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
-            { subject: 'Urologia', hospital: 'Hospital Oñativia', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Linha do Meio' },
             { subject: 'Obstetrícia', hospital: 'Hospital Oñativia', start: '11/08/2025', end: '12/09/2025', turno: 'Manhã', details: 'Linha do Meio' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Oñativia', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: 'Linha do Meio' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Oñativia', start: '29/09/2025', end: '10/10/2025', turno: 'Manhã', details: 'Linha do Meio' },
             { subject: 'Radiologia', hospital: 'Hospital Oñativia', start: '13/10/2025', end: '24/10/2025', turno: 'Manhã', details: 'Linha do Meio' },
             { subject: 'Oftalmologia', hospital: 'Hospital Oñativia', start: '27/10/2025', end: '14/11/2025', turno: 'Manhã', details: 'Linha do Meio' },
             { subject: 'Ginecologia', hospital: 'Hospital Oñativia', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha do Meio' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Oñativia', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Linha Inferior' },
-            { subject: 'Neurologia', hospital: 'Hospital Paroissien', start: '21/07/2025', end: '08/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Medicina B', hospital: 'Hospital Paroissien', start: '11/08/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
-            { subject: 'Ginecologia', hospital: 'Hospital Penna', start: '28/07/2025', end: '11/08/2025', turno: 'Manhã', details: 'Cirúrgicas' },
-            { subject: 'Obstetrícia', hospital: 'Hospital Penna', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: 'Cirúrgicas' },
-            { subject: 'Neurocirurgia', hospital: 'Hospital Penna', start: '20/10/2025', end: '31/10/2025', turno: 'Manhã', details: 'Cirúrgicas' },
-            { subject: 'Otorrinolaringologia', hospital: 'Hospital Penna', start: '03/11/2025', end: '14/11/2025', turno: 'Manhã', details: 'Cirúrgicas' },
-            { subject: 'Urologia', hospital: 'Hospital Penna', start: '17/11/2025', end: '28/11/2025', turno: 'Manhã', details: 'Cirúrgicas' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Penna', start: '01/12/2025', end: '19/12/2025', turno: 'Manhã', details: 'Cirúrgicas' },
-            { subject: 'Neurologia', hospital: 'Hospital Penna', start: '21/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Clínicas' },
             { subject: 'Dermatologia', hospital: 'Hospital Penna', start: '18/08/2025', end: '05/09/2025', turno: 'Manhã', details: 'Clínicas' },
             { subject: 'Neumonologia', hospital: 'Hospital Penna', start: '08/09/2025', end: '19/09/2025', turno: 'Manhã', details: 'Clínicas' },
             { subject: 'Radiologia', hospital: 'Hospital Penna', start: '22/09/2025', end: '03/10/2025', turno: 'Manhã', details: 'Clínicas' },
             { subject: 'Infectologia', hospital: 'Hospital Penna', start: '13/10/2025', end: '27/10/2025', turno: 'Manhã', details: 'Clínicas' },
             { subject: 'Psiquiatria', hospital: 'Hospital Penna', start: '27/10/2025', end: '10/11/2025', turno: 'Manhã', details: 'Clínicas' },
             { subject: 'Nutrição', hospital: 'Hospital Penna', start: '10/11/2025', end: '24/11/2025', turno: 'Manhã', details: 'Clínicas' },
-            { subject: 'Neurocirurgia', hospital: 'Hospital Piñero', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Linha Superior' },
+            { subject: 'Obstetrícia', hospital: 'Hospital Penna', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: 'Cirúrgicas' },
+            { subject: 'Neurocirurgia', hospital: 'Hospital Penna', start: '20/10/2025', end: '31/10/2025', turno: 'Manhã', details: 'Cirúrgicas' },
+            { subject: 'Otorrinolaringologia', hospital: 'Hospital Penna', start: '03/11/2025', end: '14/11/2025', turno: 'Manhã', details: 'Cirúrgicas' },
+            { subject: 'Urologia', hospital: 'Hospital Penna', start: '17/11/2025', end: '28/11/2025', turno: 'Manhã', details: 'Cirúrgicas' },
+            { subject: 'Oftalmologia', hospital: 'Hospital Penna', start: '01/12/2025', end: '19/12/2025', turno: 'Manhã', details: 'Cirúrgicas' },
             { subject: 'Medicina B', hospital: 'Hospital Piñero', start: '11/08/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha do Meio' },
-            { subject: 'Ginecologia', hospital: 'Hospital Piñero', start: '30/06/2025', end: '01/08/2025', turno: 'Manhã', details: 'Linha Inferior' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Piñero', start: '30/06/2025', end: '18/07/2025', turno: 'Manhã', details: 'Linha Inferior' },
-            { subject: 'Urologia', hospital: 'Hospital Piñero', start: '21/07/2025', end: '01/08/2025', turno: 'Manhã', details: 'Linha Inferior' },
-            { subject: 'Traumatologia', hospital: 'Hospital Posadas', start: '28/07/2025', end: '15/08/2025', turno: 'Manhã', details: 'Grupo 1' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Posadas', start: '18/08/2025', end: '29/08/2025', turno: 'Manhã', details: 'Grupo 1' },
             { subject: 'Oftalmologia', hospital: 'Hospital Posadas', start: '01/09/2025', end: '12/09/2025', turno: 'Manhã', details: 'Grupo 1' },
             { subject: 'Ginecologia', hospital: 'Hospital Posadas', start: '15/09/2025', end: '17/10/2025', turno: 'Manhã', details: 'Grupo 1' },
             { subject: 'Urologia', hospital: 'Hospital Posadas', start: '20/10/2025', end: '31/10/2025', turno: 'Manhã', details: 'Grupo 1' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Posadas', start: '03/11/2025', end: '14/11/2025', turno: 'Manhã', details: 'Grupo 1' },
             { subject: 'Obstetrícia', hospital: 'Hospital Posadas', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Grupo 1' },
-            { subject: 'Obstetrícia', hospital: 'Hospital Posadas', start: '30/06/2025', end: '01/08/2025', turno: 'Manhã', details: 'Grupo 2' },
             { subject: 'Pediatria', hospital: 'Hospital Posadas', start: '04/08/2025', end: '10/10/2025', turno: 'Manhã', details: 'Grupo 2' },
             { subject: 'Cirurgia Geral', hospital: 'Hospital Posadas', start: '13/10/2025', end: '19/12/2025', turno: 'Manhã', details: 'Grupo 2' },
-            { subject: 'Ginecologia', hospital: 'Hospital Posadas', start: '30/06/2025', end: '01/08/2025', turno: 'Manhã', details: 'Grupo 3' },
             { subject: 'Cirurgia Geral', hospital: 'Hospital Posadas', start: '04/08/2025', end: '04/10/2025', turno: 'Manhã', details: 'Grupo 3' },
             { subject: 'Pediatria', hospital: 'Hospital Posadas', start: '13/10/2025', end: '19/12/2025', turno: 'Manhã', details: 'Grupo 3' },
-            { subject: 'Urologia', hospital: 'Hospital Ramos Mejía', start: '21/07/2025', end: '01/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Pediatria', hospital: 'Hospital Ramos Mejía', start: '04/08/2025', end: '10/10/2025', turno: 'Manhã', details: '' },
             { subject: 'Ginecologia', hospital: 'Hospital Ramos Mejía', start: '13/10/2025', end: '14/11/2025', turno: 'Manhã', details: '' },
             { subject: 'Obstetrícia', hospital: 'Hospital Ramos Mejía', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
             { subject: 'Cirurgia Geral', hospital: 'Hospital Ramos Mejía', start: '04/08/2025', end: '10/10/2025', turno: 'Manhã', details: '' },
             { subject: 'Pediatria', hospital: 'Hospital Ramos Mejía', start: '13/10/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
-            { subject: 'Neurologia', hospital: 'Hospital Rivadavia', start: '21/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Clínicas - Almandoz' },
             { subject: 'Medicina B', hospital: 'Hospital Rivadavia', start: '11/08/2025', end: '19/12/2025', turno: 'Manhã', details: 'Clínicas - Almandoz' },
-            { subject: 'Nutrição', hospital: 'Hospital Rivadavia', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Clínicas - Abaca' },
             { subject: 'Psiquiatria', hospital: 'Hospital Rivadavia', start: '11/08/2025', end: '05/09/2025', turno: 'Manhã', details: 'Clínicas - Abaca' },
             { subject: 'Neumonologia', hospital: 'Hospital Rivadavia', start: '08/09/2025', end: '19/09/2025', turno: 'Manhã', details: 'Clínicas - Abaca' },
             { subject: 'Dermatologia', hospital: 'Hospital Rivadavia', start: '22/09/2025', end: '10/10/2025', turno: 'Manhã', details: 'Clínicas - Abaca' },
             { subject: 'Neurologia', hospital: 'Hospital Rivadavia', start: '20/10/2025', end: '07/11/2025', turno: 'Manhã', details: 'Clínicas - Abaca' },
             { subject: 'Infectologia', hospital: 'Hospital Rivadavia', start: '10/11/2025', end: '05/12/2025', turno: 'Manhã', details: 'Clínicas - Abaca' },
-            { subject: 'Obstetrícia', hospital: 'Hospital Rivadavia', start: '30/06/2025', end: '01/08/2025', turno: 'Manhã', details: 'Cirúrgicas - Acosta' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Roffo', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Linha Superior' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Roffo', start: '11/08/2025', end: '22/08/2025', turno: 'Manhã', details: 'Linha Superior' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Roffo', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: 'Linha Superior' },
             { subject: 'Urologia', hospital: 'Hospital Roffo', start: '29/09/2025', end: '10/10/2025', turno: 'Manhã', details: 'Linha Superior' },
             { subject: 'Pediatria', hospital: 'Hospital Roffo', start: '13/10/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha Superior' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Roffo', start: '30/06/2025', end: '18/07/2025', turno: 'Manhã', details: 'Linha Inferior' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Roffo', start: '21/07/2025', end: '01/08/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Ginecologia', hospital: 'Hospital Roffo', start: '11/08/2025', end: '12/09/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Infectologia', hospital: 'Hospital Roffo', start: '13/10/2025', end: '14/11/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Oftalmologia', hospital: 'Hospital Roffo', start: '27/10/2025', end: '14/11/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Roffo', start: '03/11/2025', end: '14/11/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Obstetrícia', hospital: 'Hospital Roffo', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha Inferior' },
-            { subject: 'Oftalmologia', hospital: 'Hospital San Isidro', start: '28/07/2025', end: '15/08/2025', turno: 'Manhã', details: 'Linha Superior' },
             { subject: 'Neurocirurgia', hospital: 'Hospital San Isidro', start: '18/08/2025', end: '29/08/2025', turno: 'Manhã', details: 'Linha Superior' },
             { subject: 'Ginecologia', hospital: 'Hospital San Isidro', start: '01/09/2025', end: '12/09/2025', turno: 'Manhã', details: 'Linha Superior' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital San Isidro', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: 'Linha Superior' },
@@ -438,8 +393,6 @@
             { subject: 'Urologia', hospital: 'Hospital San Isidro', start: '13/10/2025', end: '24/10/2025', turno: 'Manhã', details: 'Linha Superior' },
             { subject: 'Oftalmologia', hospital: 'Hospital San Isidro', start: '27/10/2025', end: '07/11/2025', turno: 'Manhã', details: 'Linha Superior' },
             { subject: 'Obstetrícia', hospital: 'Hospital San Isidro', start: '10/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha Superior' },
-            { subject: 'Ginecologia', hospital: 'Hospital San Isidro', start: '28/07/2025', end: '11/08/2025', turno: 'Manhã', details: 'Linha Inferior' },
-            { subject: 'Oftalmologia', hospital: 'Hospital San Isidro', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Obstetrícia', hospital: 'Hospital San Isidro', start: '11/08/2025', end: '22/08/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Neurocirurgia', hospital: 'Hospital San Isidro', start: '25/08/2025', end: '12/09/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital San Isidro', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: 'Linha Inferior' },
@@ -449,34 +402,24 @@
             { subject: 'Neurocirurgia', hospital: 'Hospital San Isidro', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Urologia', hospital: 'Hospital San Isidro', start: '24/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Oftalmologia', hospital: 'Hospital San Isidro', start: '24/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha Inferior' },
-            { subject: 'Neurologia', hospital: 'Hospital Sanatorio Güemes', start: '21/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Ciclo Clínico' },
             { subject: 'Psiquiatria', hospital: 'Hospital Sanatorio Güemes', start: '11/08/2025', end: '05/09/2025', turno: 'Manhã', details: 'Ciclo Clínico' },
             { subject: 'Neumonologia', hospital: 'Hospital Sanatorio Güemes', start: '08/09/2025', end: '19/09/2025', turno: 'Manhã', details: 'Ciclo Clínico' },
             { subject: 'Dermatologia', hospital: 'Hospital Sanatorio Güemes', start: '22/09/2025', end: '10/10/2025', turno: 'Manhã', details: 'Ciclo Clínico' },
             { subject: 'Diagnóstico por Imágenes', hospital: 'Hospital Sanatorio Güemes', start: '10/11/2025', end: '21/11/2025', turno: 'Manhã', details: 'Ciclo Clínico' },
             { subject: 'Nutrição', hospital: 'Hospital Sanatorio Güemes', start: '27/10/2025', end: '07/11/2025', turno: 'Manhã', details: 'Ciclo Clínico' },
-            { subject: 'Traumatologia', hospital: 'Hospital Sanatorio Güemes', start: '28/07/2025', end: '15/08/2025', turno: 'Manhã', details: 'Especialidades Quirúrgicas' },
-            { subject: 'Urologia', hospital: 'Hospital Sanatorio Güemes', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Especialidades Quirúrgicas' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Sanatorio Güemes', start: '11/08/2025', end: '22/08/2025', turno: 'Manhã', details: 'Especialidades Quirúrgicas' },
             { subject: 'Oftalmologia', hospital: 'Hospital Sanatorio Güemes', start: '01/09/2025', end: '12/09/2025', turno: 'Manhã', details: 'Especialidades Quirúrgicas' },
             { subject: 'Obstetrícia', hospital: 'Hospital Sanatorio Güemes', start: '15/09/2025', end: '17/10/2025', turno: 'Manhã', details: 'Especialidades Quirúrgicas' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Sanatorio Güemes', start: '20/10/2025', end: '31/10/2025', turno: 'Manhã', details: 'Especialidades Quirúrgicas' },
             { subject: 'Ginecologia', hospital: 'Hospital Sanatorio Güemes', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Especialidades Quirúrgicas' },
-            { subject: 'Ginecologia', hospital: 'Hospital Santojanni', start: '30/06/2025', end: '01/08/2025', turno: 'Manhã', details: 'Grupo A/B' },
-            { subject: 'Otorrinolaringologia', hospital: 'Hospital Santojanni', start: '21/07/2025', end: '01/08/2025', turno: 'Manhã', details: 'Clínicas/Cirúrgicas' },
             { subject: 'Cirurgia Geral', hospital: 'Hospital Santojanni', start: '04/08/2025', end: '10/10/2025', turno: 'Manhã', details: 'Clínicas/Cirúrgicas' },
             { subject: 'Pediatria', hospital: 'Hospital Santojanni', start: '13/10/2025', end: '19/12/2025', turno: 'Manhã', details: 'Clínicas/Cirúrgicas' },
-            { subject: 'Neumonologia', hospital: 'Hospital Tigre', start: '28/07/2025', end: '11/08/2025', turno: 'Manhã', details: 'Clínicas' },
-            { subject: 'Neurologia', hospital: 'Hospital Tigre', start: '21/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Clínicas' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Tigre', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Cirúrgicas' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Tigre', start: '11/08/2025', end: '22/08/2025', turno: 'Manhã', details: 'Cirúrgicas' },
             { subject: 'Ginecologia', hospital: 'Hospital Tigre', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: 'Cirúrgicas' },
             { subject: 'Urologia', hospital: 'Hospital Tigre', start: '29/09/2025', end: '10/10/2025', turno: 'Manhã', details: 'Cirúrgicas' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Tigre', start: '13/10/2025', end: '24/10/2025', turno: 'Manhã', details: 'Cirúrgicas' },
             { subject: 'Obstetrícia', hospital: 'Hospital Tigre', start: '27/10/2025', end: '14/11/2025', turno: 'Manhã', details: 'Cirúrgicas' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Tigre', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Cirúrgicas' },
-            { subject: 'Ginecologia', hospital: 'Hospital Tigre', start: '28/07/2025', end: '11/08/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Inferior' },
-            { subject: 'Otorrinolaringologia', hospital: 'Hospital Tigre', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Inferior' },
             { subject: 'Obstetrícia', hospital: 'Hospital Tigre', start: '11/08/2025', end: '22/08/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Inferior' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Tigre', start: '25/08/2025', end: '12/09/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Inferior' },
             { subject: 'Urologia', hospital: 'Hospital Tigre', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Inferior' },
@@ -484,8 +427,6 @@
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Tigre', start: '13/10/2025', end: '24/10/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Inferior' },
             { subject: 'Obstetrícia', hospital: 'Hospital Tigre', start: '27/10/2025', end: '14/11/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Inferior' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Tigre', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Cirúrgicas - Linha Inferior' },
-            { subject: 'Neurocirurgia', hospital: 'Hospital Tornú', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: '' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Tornú', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Obstetrícia', hospital: 'Hospital Tornú', start: '11/08/2025', end: '12/09/2025', turno: 'Manhã', details: '' },
             { subject: 'Ginecologia', hospital: 'Hospital Tornú', start: '11/08/2025', end: '12/09/2025', turno: 'Manhã', details: '' },
             { subject: 'Urologia', hospital: 'Hospital Tornú', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: '' },
@@ -498,7 +439,6 @@
             { subject: 'Urologia', hospital: 'Hospital Tornú', start: '17/11/2025', end: '28/11/2025', turno: 'Manhã', details: '' },
             { subject: 'Ginecologia', hospital: 'Hospital Tornú', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
             { subject: 'Oftalmologia', hospital: 'Hospital Tornú', start: '01/12/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
-            { subject: 'Oftalmologia', hospital: 'Hospital Vélez Sarsfield', start: '28/07/2025', end: '15/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Vélez Sarsfield', start: '18/08/2025', end: '29/08/2025', turno: 'Manhã', details: '' },
             { subject: 'Ginecologia', hospital: 'Hospital Vélez Sarsfield', start: '01/09/2025', end: '12/09/2025', turno: 'Manhã', details: '' },
             { subject: 'Urologia', hospital: 'Hospital Vélez Sarsfield', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: '' },
@@ -506,8 +446,6 @@
             { subject: 'Obstetrícia', hospital: 'Hospital Vélez Sarsfield', start: '13/10/2025', end: '24/10/2025', turno: 'Manhã', details: '' },
             { subject: 'Oftalmologia', hospital: 'Hospital Vélez Sarsfield', start: '27/10/2025', end: '14/11/2025', turno: 'Manhã', details: '' },
             { subject: 'Obstetrícia', hospital: 'Hospital Vélez Sarsfield', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: '' },
-            { subject: 'Ginecologia', hospital: 'Hospital Vélez Sarsfield', start: '28/07/2025', end: '11/08/2025', turno: 'Manhã', details: 'Linha Inferior' },
-            { subject: 'Urologia', hospital: 'Hospital Vélez Sarsfield', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Obstetrícia', hospital: 'Hospital Vélez Sarsfield', start: '11/08/2025', end: '22/08/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Neurocirurgia', hospital: 'Hospital Vélez Sarsfield', start: '25/08/2025', end: '12/09/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Otorrinolaringologia', hospital: 'Hospital Vélez Sarsfield', start: '15/09/2025', end: '26/09/2025', turno: 'Manhã', details: 'Linha Inferior' },
@@ -517,8 +455,6 @@
             { subject: 'Neurocirurgia', hospital: 'Hospital Vélez Sarsfield', start: '17/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Urologia', hospital: 'Hospital Vélez Sarsfield', start: '24/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha Inferior' },
             { subject: 'Oftalmologia', hospital: 'Hospital Vélez Sarsfield', start: '24/11/2025', end: '19/12/2025', turno: 'Manhã', details: 'Linha Inferior' },
-            { subject: 'Urologia', hospital: 'Hospital Zubizarreta', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Grupo 1' },
-            { subject: 'Neurocirurgia', hospital: 'Hospital Zubizarreta', start: '28/07/2025', end: '08/08/2025', turno: 'Manhã', details: 'Grupo 2' },
             { subject: 'Ginecologia', hospital: 'Hospital Zubizarreta', start: '11/08/2025', end: '12/09/2025', turno: 'Manhã', details: '' },
             { subject: 'Traumatologia', hospital: 'Hospital Zubizarreta', start: '15/09/2025', end: '03/10/2025', turno: 'Manhã', details: 'F.P.' },
             { subject: 'Oftalmologia', hospital: 'Hospital Zubizarreta', start: '13/10/2025', end: '24/10/2025', turno: 'Manhã', details: '' },
@@ -545,7 +481,7 @@
             { subject: 'Otorrinolaringologia', hospital: 'HTAL. SANTOJANNI', start: '06/10/2025', end: '17/10/2025', turno: 'Vespertina', details: '' },
             { subject: 'Neurologia', hospital: 'STA BARBARA', start: '06/10/2025', end: '24/10/2025', turno: 'Vespertina', details: '' },
             { subject: 'Ginecologia', hospital: 'HTAL. RAMOS MEJIA', start: '13/10/2025', end: '14/11/2025', turno: 'Vespertina', details: '' },
-            { subject: 'Infectologia', hospital: 'STA BARBARA', start: '13/10/2025', end: '07/11/2025', turno: 'Vespertina', details: '' },
+            { subject: 'Infectologia', hospital: 'STA BARBARA', start: '13/10/2025', end: '07/10/2025', turno: 'Vespertina', details: '' },
             { subject: 'Neurocirurgia', hospital: 'LARCADE', start: '20/10/2025', end: '31/10/2025', turno: 'Vespertina', details: '' },
             { subject: 'Obstetrícia', hospital: 'HTAL. SANTOJANNI', start: '20/10/2025', end: '31/10/2025', turno: 'Vespertina', details: '' },
             { subject: 'Dermatologia', hospital: 'HTAL. SANTOJANNI', start: '20/10/2025', end: '07/11/2025', turno: 'Vespertina', details: '' },
@@ -563,6 +499,8 @@
         // --- Variáveis Globais ---
         // Armazena as cursadas selecionadas pelo usuário, persistindo no localStorage
         let selectedCourses = JSON.parse(localStorage.getItem('selectedCourses')) || [];
+        // Armazena as preferências do usuário para cada cursada (Pode Cursar, Não Pode Cursar, Prioritária)
+        let userCoursePreferences = JSON.parse(localStorage.getItem('userCoursePreferences')) || {};
         
         // --- Funções Auxiliares de Data ---
         // Converte uma string de data (DD/MM/AAAA) para um objeto Date
@@ -606,7 +544,7 @@
 
             if (coursesToRender.length === 0) {
                 console.log("Nenhuma cursada para renderizar. Exibindo mensagem padrão.");
-                courseListBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-600 py-4">Selecione uma matéria para ver as opções de cursada.</td></tr>';
+                courseListBody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-600 py-4">Selecione uma matéria para ver as opções de cursada.</td></tr>';
                 return;
             }
 
@@ -617,6 +555,8 @@
                 const courseId = `${course.subject}-${course.hospital}-${course.start}-${course.end}-${course.turno}`.replace(/[^a-zA-Z0-9-]/g, '');
                 // Verifica se a cursada já está selecionada
                 const isSelected = selectedCourses.some(sc => sc.id === courseId);
+                // Obtém a preferência do usuário para esta cursada, padrão é 'Pode Cursar'
+                const userPreference = userCoursePreferences[courseId] || 'Pode Cursar';
 
                 const row = document.createElement('tr');
                 row.id = courseId;
@@ -644,14 +584,53 @@
                 detailsTd.textContent = course.details || '-';
                 row.appendChild(detailsTd);
 
+                // Célula de Preferência com o seletor
+                const preferenceCell = document.createElement('td');
+                const preferenceSelect = document.createElement('select');
+                preferenceSelect.className = 'preference-select';
+                preferenceSelect.dataset.courseId = courseId; // Armazena o ID para referência
+                preferenceSelect.dataset.courseData = JSON.stringify(course); // Armazena os dados completos
+
+                ['Pode Cursar', 'Não Pode Cursar', 'Prioritária'].forEach(optionText => {
+                    const option = document.createElement('option');
+                    option.value = optionText;
+                    option.textContent = optionText;
+                    if (userPreference === optionText) {
+                        option.selected = true;
+                    }
+                    preferenceSelect.appendChild(option);
+                });
+
+                preferenceSelect.addEventListener('change', (event) => {
+                    const changedCourseId = event.target.dataset.courseId;
+                    const changedCourseData = JSON.parse(event.target.dataset.courseData);
+                    userCoursePreferences[changedCourseId] = event.target.value;
+                    localStorage.setItem('userCoursePreferences', JSON.stringify(userCoursePreferences));
+                    console.log(`Preferência para ${changedCourseData.subject} (${changedCourseData.hospital}) atualizada para: ${event.target.value}`);
+                    // Atualiza o estado do botão "Selecionar"
+                    const addButton = document.querySelector(`#${changedCourseId} .add-button`);
+                    if (addButton) {
+                        addButton.disabled = (event.target.value === 'Não Pode Cursar');
+                    }
+                    // Se a preferência for "Não Pode Cursar" e a cursada estiver selecionada, remove-a
+                    if (event.target.value === 'Não Pode Cursar' && isSelected) {
+                        toggleCourseSelection(changedCourseData, changedCourseId); // Isso removerá e atualizará
+                    } else {
+                        updateSelectedCoursesDisplay(); // Apenas atualiza a exibição para reavaliar conflitos
+                    }
+                });
+
+                preferenceCell.appendChild(preferenceSelect);
+                row.appendChild(preferenceCell);
+
                 // Cria a célula de ação e o botão separadamente para anexar o event listener
                 const actionCell = document.createElement('td');
                 const button = document.createElement('button');
                 button.className = 'add-button';
                 button.textContent = isSelected ? 'Remover' : 'Selecionar';
-                // Armazena o ID e os dados completos da cursada nos atributos data-*
                 button.dataset.courseId = courseId; 
                 button.dataset.courseData = JSON.stringify(course); 
+                button.disabled = (userPreference === 'Não Pode Cursar'); // Desabilita se for "Não Pode Cursar"
 
                 actionCell.appendChild(button);
                 row.appendChild(actionCell);
@@ -662,17 +641,14 @@
             courseListBody.appendChild(fragment); // Anexa o fragmento ao DOM de uma vez
 
             // Adiciona event listeners a todos os botões 'add-button' recém-criados
-            // Isso deve ser feito APÓS os elementos serem anexados ao DOM
             courseListBody.querySelectorAll('.add-button').forEach(button => {
                 button.addEventListener('click', (event) => {
                     const courseId = event.target.dataset.courseId;
-                    // Analisa os dados da cursada de volta para um objeto JavaScript
                     const courseData = JSON.parse(event.target.dataset.courseData); 
                     toggleCourseSelection(courseData, courseId);
                 });
             });
 
-            // Após renderizar a lista principal, atualiza a exibição das cursadas selecionadas
             updateSelectedCoursesDisplay();
         }
 
@@ -687,7 +663,7 @@
             selectedCoursesBody.innerHTML = ''; // Limpa o conteúdo anterior da tabela de selecionadas
 
             if (selectedCourses.length === 0) {
-                selectedCoursesBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-600 py-4">Nenhuma cursada selecionada ainda.</td></tr>';
+                selectedCoursesBody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-600 py-4">Nenhuma cursada selecionada ainda.</td></tr>';
                 return;
             }
 
@@ -701,6 +677,9 @@
 
                 let conflictMessage = '';
                 let hasConflict = false;
+
+                // Obtém a preferência do usuário para esta cursada, padrão é 'Pode Cursar'
+                const userPreference = userCoursePreferences[selectedCourse.id] || 'Pode Cursar';
 
                 // Verifica conflitos com CADA UMA das outras cursadas já selecionadas
                 selectedCourses.forEach(otherCourse => {
@@ -725,6 +704,13 @@
                     <td>${formatDate(parseDate(selectedCourse.start))} a ${formatDate(parseDate(selectedCourse.end))}</td>
                     <td>${selectedCourse.turno}</td>
                     <td>
+                        <select class="preference-select" data-course-id="${selectedCourse.id}" data-course-data='${JSON.stringify(selectedCourse)}'>
+                            <option value="Pode Cursar" ${userPreference === 'Pode Cursar' ? 'selected' : ''}>Pode Cursar</option>
+                            <option value="Não Pode Cursar" ${userPreference === 'Não Pode Cursar' ? 'selected' : ''}>Não Pode Cursar</option>
+                            <option value="Prioritária" ${userPreference === 'Prioritária' ? 'selected' : ''}>Prioritária</option>
+                        </select>
+                    </td>
+                    <td>
                         ${hasConflict ? `<span class="conflict-message">${conflictMessage}</span>` : 'Nenhum conflito'}
                     </td>
                     <td>
@@ -741,6 +727,31 @@
                     const courseToRemove = selectedCourses.find(c => c.id === courseIdToRemove);
                     if (courseToRemove) {
                         toggleCourseSelection(courseToRemove, courseIdToRemove);
+                    }
+                });
+            });
+
+            // Adiciona event listeners para os seletores de preferência na tabela de selecionadas
+            selectedCoursesBody.querySelectorAll('.preference-select').forEach(select => {
+                select.addEventListener('change', (event) => {
+                    const changedCourseId = event.target.dataset.courseId;
+                    const changedCourseData = JSON.parse(event.target.dataset.courseData);
+                    userCoursePreferences[changedCourseId] = event.target.value;
+                    localStorage.setItem('userCoursePreferences', JSON.stringify(userCoursePreferences));
+                    console.log(`Preferência para ${changedCourseData.subject} (${changedCourseData.hospital}) na tabela de selecionadas atualizada para: ${event.target.value}`);
+
+                    // Se a preferência for "Não Pode Cursar" e a cursada estiver selecionada, remove-a
+                    if (event.target.value === 'Não Pode Cursar') {
+                        toggleCourseSelection(changedCourseData, changedCourseId); // Isso removerá e atualizará
+                    } else {
+                        updateSelectedCoursesDisplay(); // Apenas atualiza a exibição para reavaliar conflitos
+                    }
+
+                    // Re-renderiza a lista principal para que os botões "Selecionar/Remover" reflitam o novo estado
+                    const currentSelectedSubject = document.getElementById('subjectSelect').value;
+                    if (currentSelectedSubject) {
+                        const filteredCourses = allCoursesData.filter(course => course.subject === currentSelectedSubject);
+                        renderCourseList(filteredCourses);
                     }
                 });
             });
@@ -771,6 +782,9 @@
                     const isSelectedNow = selectedCourses.some(sc => sc.id === courseId);
                     addButton.textContent = isSelectedNow ? 'Remover' : 'Selecionar';
                     mainListRow.classList.toggle('selected', isSelectedNow);
+                    // Garante que o botão 'Selecionar' permanece desabilitado se a preferência for 'Não Pode Cursar'
+                    const userPreference = userCoursePreferences[courseId] || 'Pode Cursar';
+                    addButton.disabled = (userPreference === 'Não Pode Cursar');
                     console.log(`Status da linha principal atualizado para ${isSelectedNow ? 'selecionado' : 'não selecionado'}.`);
                 }
             }
@@ -815,6 +829,131 @@
             renderCourseList(filtered);
         }
 
+        // --- Função de Otimização de Cronograma ---
+        function generateOptimizedSchedule() {
+            console.log("Iniciando geração de cronograma otimizado...");
+
+            const optimizationStatusDiv = document.getElementById('optimizationStatus');
+            if (!optimizationStatusDiv) {
+                console.error("Erro: Elemento #optimizationStatus não encontrado!");
+                return;
+            }
+            optimizationStatusDiv.className = "mt-4 p-3 rounded-lg text-center text-sm font-semibold bg-blue-100 text-blue-800";
+            optimizationStatusDiv.textContent = "Calculando o cronograma ideal...";
+
+            // 1. Obter as matérias únicas que o usuário DESEJA agendar (baseado nas suas seleções atuais)
+            // Se não houver matérias selecionadas, considera todas as matérias únicas do allCoursesData
+            const desiredSubjects = selectedCourses.length > 0 
+                ? new Set(selectedCourses.map(course => course.subject))
+                : new Set(allCoursesData.map(course => course.subject));
+            
+            console.log("Matérias desejadas para agendamento:", Array.from(desiredSubjects).join(', '));
+
+            // 2. Preparar cursos candidatos, FILTRANDO por 'Não Pode Cursar' e 'CONSEGUIDA'
+            const candidateCoursesPool = allCoursesData.filter(course => {
+                const courseId = `${course.subject}-${course.hospital}-${course.start}-${course.end}-${course.turno}`.replace(/[^a-zA-Z0-9-]/g, '');
+                const preference = userCoursePreferences[courseId] || 'Pode Cursar';
+                // Exclui cursos marcados como 'Não Pode Cursar' e os já 'CONSEGUIDA'
+                return preference !== 'Não Pode Cursar' && !course.details.includes('CONSEGUIDA.');
+            });
+            console.log("Cursos candidatos após filtrar 'Não Pode Cursar' e 'CONSEGUIDA':", candidateCoursesPool.length);
+
+
+            // 3. Inicializar o cronograma otimizado e um set para matérias já agendadas
+            let tempOptimizedSchedule = [];
+            let scheduledSubjects = new Set();
+
+            // 4. Para cada matéria desejada, tentar encontrar a melhor cursada sem conflitos
+            for (const subject of desiredSubjects) {
+                // Filtrar apenas os cursos para a matéria atual do pool de candidatos
+                const subjectCandidates = candidateCoursesPool.filter(course => course.subject === subject);
+
+                // Ordenar os candidatos da matéria atual: 
+                // 1º Prioritária, 2º por data de início, 3º por turno (Manhã primeiro)
+                subjectCandidates.sort((a, b) => {
+                    const courseIdA = `${a.subject}-${a.hospital}-${a.start}-${a.end}-${a.turno}`.replace(/[^a-zA-Z0-9-]/g, '');
+                    const courseIdB = `${b.subject}-${b.hospital}-${b.start}-${b.end}-${b.turno}`.replace(/[^a-zA-Z0-9-]/g, '');
+                    const preferenceA = userCoursePreferences[courseIdA] || 'Pode Cursar';
+                    const preferenceB = userCoursePreferences[courseIdB] || 'Pode Cursar';
+
+                    // Prioridade: 'Prioritária' vem antes de 'Pode Cursar'
+                    if (preferenceA === 'Prioritária' && preferenceB !== 'Prioritária') return -1;
+                    if (preferenceA !== 'Prioritária' && preferenceB === 'Prioritária') return 1;
+
+                    // Em caso de mesma prioridade, ordenar por data e turno
+                    const dateA = parseDate(a.start);
+                    const dateB = parseDate(b.start);
+                    if (dateA - dateB !== 0) {
+                        return dateA - dateB;
+                    }
+                    if (a.turno === 'Manhã' && b.turno !== 'Manhã') return -1;
+                    if (a.turno !== 'Manhã' && b.turno === 'Manhã') return 1;
+                    return 0;
+                });
+
+                let foundCourseForSubject = false;
+                for (const course of subjectCandidates) {
+                    const courseId = `${course.subject}-${course.hospital}-${course.start}-${course.end}-${course.turno}`.replace(/[^a-zA-Z0-9-]/g, '');
+                    const courseWithId = { ...course, id: courseId };
+
+                    let canAdd = true;
+                    // Verifica conflito com os cursos já no cronograma otimizado
+                    for (const scheduledCourse of tempOptimizedSchedule) {
+                        if (checkConflict(courseWithId, scheduledCourse)) {
+                            canAdd = false;
+                            break;
+                        }
+                    }
+
+                    if (canAdd) {
+                        tempOptimizedSchedule.push(courseWithId);
+                        scheduledSubjects.add(subject);
+                        foundCourseForSubject = true;
+                        console.log(`Adicionado ao cronograma otimizado: ${course.subject} (${course.hospital})`);
+                        break; // Encontrou uma opção para esta matéria, passa para a próxima matéria desejada
+                    }
+                }
+
+                if (!foundCourseForSubject) {
+                    console.warn(`Não foi possível encontrar uma cursada sem conflitos para a matéria: ${subject}`);
+                }
+            }
+
+            // 5. Atualiza a variável global selectedCourses e o localStorage com o cronograma otimizado
+            selectedCourses = tempOptimizedSchedule;
+            localStorage.setItem('selectedCourses', JSON.stringify(selectedCourses));
+            
+            // 6. Atualiza a exibição das tabelas
+            updateSelectedCoursesDisplay();
+            // Re-renderiza a lista principal para que os botões "Selecionar/Remover" reflitam o novo estado
+            const currentSelectedSubject = document.getElementById('subjectSelect').value;
+            if (currentSelectedSubject) {
+                const filteredCourses = allCoursesData.filter(course => course.subject === currentSelectedSubject);
+                renderCourseList(filteredCourses);
+            } else {
+                // Se nenhuma matéria estiver selecionada no dropdown, limpa a lista principal
+                document.getElementById('courseListBody').innerHTML = '<tr><td colspan="7" class="text-center text-gray-600 py-4">Selecione uma matéria para ver as opções de cursada.</td></tr>';
+            }
+
+            console.log("Geração de cronograma otimizado concluída.");
+            console.log("Matérias agendadas no cronograma otimizado:", scheduledSubjects.size);
+
+            // Mensagem de status final
+            let allDesiredSubjectsScheduled = true;
+            const missingSubjects = Array.from(desiredSubjects).filter(subject => !scheduledSubjects.has(subject));
+            if (missingSubjects.length > 0) {
+                allDesiredSubjectsScheduled = false;
+            }
+
+            if (allDesiredSubjectsScheduled) {
+                optimizationStatusDiv.className = "mt-4 p-3 rounded-lg text-center text-sm font-semibold bg-green-100 text-green-800";
+                optimizationStatusDiv.textContent = "Cronograma otimizado gerado com sucesso para TODAS as matérias selecionadas sem conflitos!";
+            } else {
+                optimizationStatusDiv.className = "mt-4 p-3 rounded-lg text-center text-sm font-semibold bg-yellow-100 text-yellow-800";
+                optimizationStatusDiv.innerHTML = `ATENÇÃO: Não foi possível incluir TODAS as matérias desejadas sem conflitos. Matérias não agendadas: ${missingSubjects.join(', ')}.`;
+            }
+        }
+
         // --- Event Listeners ---
         // Executa quando o DOM estiver completamente carregado
         document.addEventListener('DOMContentLoaded', () => {
@@ -831,6 +970,14 @@
                 });
             } else {
                 console.error("Erro: Elemento #subjectSelect não encontrado para anexar o event listener.");
+            }
+
+            // Event listener para o botão de otimização
+            const optimizeButton = document.getElementById('optimizeScheduleButton');
+            if (optimizeButton) {
+                optimizeButton.addEventListener('click', generateOptimizedSchedule);
+            } else {
+                console.error("Erro: Elemento #optimizeScheduleButton não encontrado.");
             }
         });
     </script>
